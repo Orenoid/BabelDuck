@@ -500,6 +500,8 @@ function TextInput(
         setInputState({ type: 'voiceMode', autoSend: !inputState.autoSend })
     }
 
+    let enableVoiceModeShortcutTimer: NodeJS.Timeout
+
     return <div ref={inputDivRef} tabIndex={0} className="flex flex-col focus:outline-none"
         onKeyDown={(e) => e.key === ' ' && isVoiceMode && startRecording()}
         // TODO bug: if the space key is released too soon right after pressing it, the recording will not stop
@@ -519,7 +521,19 @@ function TextInput(
             placeholder={isTyping ? `Type your message here...\n\nPress Enter to send, Ctrl+Enter to add the message, Shift+Enter to add a new line` : `Press Space to start recording, release to stop`}
             value={msg.content} onChange={(e) => setMsg(msg.updateContent(e.target.value))}
             readOnly={!isTyping}
+            onKeyUp={(e) => {
+                if (e.key === 'v') {
+                    clearTimeout(enableVoiceModeShortcutTimer)
+                    setMsg(msg.updateContent(msg.content + 'v'))
+                }
+            }}
             onKeyDown={(e) => {
+                if (e.key === 'v') {
+                    e.preventDefault()
+                    enableVoiceModeShortcutTimer = setTimeout(() => {
+                        enableVoiceMode()
+                    }, 300)
+                }
                 if (e.key === 'Enter' && e.ctrlKey) {
                     e.preventDefault();
                     handleSend(msg, { generateAssistantMsg: false });
