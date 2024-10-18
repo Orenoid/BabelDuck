@@ -528,11 +528,11 @@ function TextInput(
                 }
             }}
             onKeyDown={(e) => {
-                if (e.key === 'v') {
+                if (e.key === 'v' && !(e.metaKey || e.ctrlKey) ) {
                     e.preventDefault()
                     enableVoiceModeShortcutTimer = setTimeout(() => {
                         enableVoiceMode()
-                    }, 300)
+                    }, 500)
                 }
                 if (e.key === 'Enter' && e.ctrlKey) {
                     e.preventDefault();
