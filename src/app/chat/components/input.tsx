@@ -565,18 +565,6 @@ function TextInput(
             </div>
             {/* voice control buttons */}
             <div className="flex flex-row items-center">
-                <label className="flex items-center mr-2">
-                    <span className="mr-1">Voice Mode</span>
-                    <Switch checked={
-                        isVoiceMode
-                        // while recording and transcribing, keep what was set before
-                        || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
-                        || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
-                        || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
-                    }
-                        onChange={(checked) => { return checked ? enableVoiceMode() : disableVoiceMode() }}
-                        className="mr-2" width={34} height={17} uncheckedIcon={false} checkedIcon={false} />
-                </label>
                 {(isVoiceMode
                     || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
                     || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
@@ -595,7 +583,20 @@ function TextInput(
                             onChange={toggleAutoSend}
                             className={`mr-2`} width={34} height={17} uncheckedIcon={false} checkedIcon={false}
                         />
-                    </label>}
+                    </label>
+                }
+                <label className="flex items-center mr-2">
+                    <span className="mr-1">Voice Mode</span>
+                    <Switch checked={
+                        isVoiceMode
+                        // while recording and transcribing, keep what was set before
+                        || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
+                        || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                        || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
+                    }
+                        onChange={(checked) => { return checked ? enableVoiceMode() : disableVoiceMode() }}
+                        className="mr-2" width={34} height={17} uncheckedIcon={false} checkedIcon={false} />
+                </label>
                 <button
                     className="rounded-full bg-black hover:bg-gray-700 focus:outline-none"
                     onClick={isRecording ? stopRecording : startRecording}
