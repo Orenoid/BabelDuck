@@ -1,9 +1,6 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react";
-// messasge types: 
-// systemMessage, text, audio, suggested_answer(apply callback)
-
 import { Message } from "../lib/message";
 import { CgChevronDoubleDown } from "react-icons/cg";
 import { TbPencil } from "react-icons/tb";
@@ -11,6 +8,8 @@ import React from "react";
 import { ThreeDots } from "react-loader-spinner";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
 import { FaStopCircle } from "react-icons/fa";
+import { IoStopCircleOutline } from "react-icons/io5";
+import { PiSpeakerHighBold } from "react-icons/pi";
 
 export const MessageTypes = {
     SYSTEM: 'systemMessage',
@@ -259,17 +258,28 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
                 </div>
             </div>
         }
-        <div className={`flex flex-row mt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
-            <div className="mr-2 cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
-                {isPlaying ? <FaStopCircle color="#898989" size={25} /> : <HiMiniSpeakerWave color="#898989" size={25} />}
-            </div>
-            <TbPencil className="cursor-pointer" size={25} color="#898989"
-                onClick={() => {
-                    toEditingState()
-                }} />
+        {/* options */}
+        <div className={`flex flex-row pt-3 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
+            {/* audio control */}
+            <IconSquareWrapper>
+                <div className="cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
+                    {isPlaying ? <IoStopCircleOutline color="#898989" size={20} /> : <PiSpeakerHighBold color="#898989" size={18} />}
+                </div>
+            </IconSquareWrapper>
+            {/* edit message */}
+            <IconSquareWrapper>
+                <TbPencil className="cursor-pointer" size={21} color="#898989" onClick={() => { toEditingState() }} />
+            </IconSquareWrapper>
         </div>
     </div>
 }
+
+export function IconSquareWrapper({ children }: { children: React.ReactNode }): JSX.Element {
+    return <div className="flex items-center cursor-pointer justify-center w-[24px] h-[24px] rounded-md hover:bg-gray-50 mr-2">
+        {children}
+    </div>
+}
+
 
 export function TextMessageComponent({ message, messageID, updateMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) {
     const textMessage = message as TextMessage
@@ -710,29 +720,28 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
         <>
             {/* if not finished, render as streaming message */}
             {!finished &&
-                <div className="flex flex-col">
+                <div className={`flex flex-col ${className}`}>
                     {/* message content */}
-                    <div className={`flex flex-col ${className}`}>
-                        <Role className="mb-2" name={message.role} />
-                        <div className={`bg-[#F6F5F5] rounded-lg w-fit max-w-[80%] p-2 ${className}`}>
-                            {msgState.type === 'init' &&
-                                <ThreeDots color="#959595" height={15} width={15} />
-                            }
-                            {msgState.type === 'streaming' &&
-                                <div dangerouslySetInnerHTML={{ __html: msgState.streamingContent.replace(/\n/g, '<br />') }} />
-                            }
-                        </div>
+
+                    <Role className="mb-2" name={message.role} />
+                    <div className={`bg-[#F6F5F5] rounded-lg w-fit max-w-[80%] p-2`}>
+                        {msgState.type === 'init' &&
+                            <ThreeDots color="#959595" height={15} width={15} />
+                        }
+                        {msgState.type === 'streaming' &&
+                            <MessageContent content={msgState.streamingContent} />
+                        }
                     </div>
+
                     {/* control buttons */}
-                    <div className={`flex flex-row mt-1 pl-1`}>
+                    <div className={`flex flex-row pt-3 pl-1 ${isPlaying ? 'visible' : 'invisible'}`}>
                         {isPlaying &&
-                            <div className="mr-2 cursor-pointer" onClick={stopPlaying}>
-                                <FaStopCircle color="#898989" size={25} />
-                            </div>
+                            <IconSquareWrapper>
+                                <IoStopCircleOutline onClick={stopPlaying} color="#898989" size={20} />
+                            </IconSquareWrapper>
                         }
                     </div>
                 </div>
-
             }
             {/* if finished, render as normal text message */}
             {finished && <ControlledTextMessageComponent
@@ -821,7 +830,7 @@ export function MessageContent({ content, className = "" }: {
     className?: string;
 }) {
     return (
-        <div className={`bg-[#F6F5F5] rounded-lg w-fit max-w-[80%] p-2 ${className}`}>
+        <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 ${className}`}>
             <div dangerouslySetInnerHTML={{ __html: content.replace(/\n/g, '<br />') }} />
         </div>
     );
