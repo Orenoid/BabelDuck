@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AddMesssageInChat, ChatLoader, UpdateMessageInChat as updateMessageInChat } from "../lib/chat"; // Changed to type-only import
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AddMesssageInChat, ChatLoader, persistMessageUpdateInChat as updateMessageInChat } from "../lib/chat"; // Changed to type-only import
 import { chatCompletionInStream } from "../lib/chat-server";
 import { useImmer } from "use-immer";
 import { type Message } from "../lib/message";
@@ -72,17 +72,17 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
         }
     }
 
-    async function updateMessage(messageID: number, newMessage: Message) {
+    async function _updateMessage(messageID: number, newMessage: Message) {
         if (!isTopLevel) {
             // only persist top-level messages
             return
         }
-        const serialized = newMessage.serialize()
-        updateMessageInChat(chatID, messageID, serialized)
+        updateMessageInChat(chatID, messageID, newMessage)
         updateMessageListStack(draft => {
             draft[draft.length - 1][messageID] = newMessage
         })
     }
+    const updateMessage = useCallback(_updateMessage, [chatID, isTopLevel, updateMessageListStack])
 
     function startFollowUpDiscussion(userInstruction: string, messageToRevise: string, revisedText: string) {
         const historyContext = true ?
@@ -132,8 +132,7 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
             </div>}
 
         <MessageList className="flex-initial overflow-auto w-4/5 h-full" messageList={currentMessageList} updateMessage={updateMessage} />
-
-        <MessageInput className="w-4/5" 
+        <MessageInput className="w-4/5"
             key={inputCompKey} chatKey={chatKey}
             addMesssage={addMesssage} messageList={currentMessageList}
             // Temporarily forbid nested multi-level discussions, the component has already supported, 
@@ -162,11 +161,10 @@ export function MessageList({ messageList, updateMessage, className }: {
             filter((msg) => msg.displayToUser).
             map((message, index) => {
                 const messageID = index
-                const Comp = message.render()
-                return <Comp key={index} className="mb-5"
-                    updateMessage={(message: Message) => {
-                        updateMessage(messageID, message)
-                    }} />
+                const MsgComponent = message.component()
+                return <MsgComponent message={message} key={index} className="mb-5"
+                    messageID={messageID}
+                    updateMessage={updateMessage} />
             })}
         <div ref={messagesEndRef} />
     </div>

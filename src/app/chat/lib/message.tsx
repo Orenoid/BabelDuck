@@ -17,10 +17,7 @@ export abstract class Message {
     }
 
     // This method is responsible for rendering the message component. 
-    abstract render(): ({ }: {
-        updateMessage: (message: Message) => void,
-        className?: string
-    }) => JSX.Element
+    abstract component(): MessageComponent
 
     // This method is responsible for serializing the message object into a string format.
     abstract serialize(): string
@@ -32,7 +29,14 @@ export abstract class Message {
     }
 
     abstract isEmpty(): boolean
-    
+
     // return the json object of this message as part of chat completion api request
     abstract toJSON(): { role: string, content: string }
 }
+
+type MessageComponent = ({ }: {
+    message: Message,
+    messageID: number,
+    updateMessage: (messageID: number, message: Message) => void,
+    className?: string
+}) => JSX.Element

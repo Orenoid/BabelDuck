@@ -45,8 +45,8 @@ export class SystemMessage extends Message {
         this._fold = fold
     }
 
-    render() {
-        const Root = ({ updateMessage, className }: { updateMessage: (message: Message) => void, className?: string }) => {
+    component() {
+        const Root = ({ messageID, updateMessage, className }: { messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) => {
             const [compState, setCompState] = useState<systemMessgeState>({ type: 'normal', showMore: false, content: this._systemPrompt })
             const showMore = (compState.type !== 'editing' && compState.showMore)
             const isEditing = (compState.type === 'editing')
@@ -96,7 +96,7 @@ export class SystemMessage extends Message {
                             <button className="rounded-2xl bg-black text-white p-2"
                                 onClick={() => {
                                     this._systemPrompt = compState.editingContent
-                                    updateMessage(this) // TODO error handling
+                                    updateMessage(messageID, this) // TODO error handling
                                     saveEdit()
                                 }}>Save</button>
 
@@ -134,15 +134,155 @@ export class SystemMessage extends Message {
     }
 }
 
+
+// make it reusable for other message components
+export function ControlledTextMessageComponent({ messageIns, compState, setCompState, messageID, updateMessage, className }: {
+    compState: textMessageState,
+    setCompState: React.Dispatch<React.SetStateAction<textMessageState>>,
+    messageIns: TextMessage,
+    messageID: number,
+    updateMessage: (messageID: number, message: Message) => void,
+    className?: string
+}) {
+    const showMore = (compState.type === 'normal' && compState.showMore)
+        || compState.type === 'playingAudio' // you will want to keep the buttons showing while playing the audio
+    const isEditing = (compState.type === 'editing')
+    const isPlaying = compState.type === 'playingAudio'
+
+    // state convertors
+    function setShowMore(showMore: boolean): void {
+        if (compState.type !== 'normal') {
+            return
+        }
+        setCompState({ ...compState, showMore: showMore })
+    }
+    const toEditingState = () => {
+        if (compState.type === 'editing') {
+            return
+        }
+        setCompState({ type: 'editing', editingContent: compState.content, originalContent: compState.content })
+    }
+    function saveEdit() {
+        if (compState.type !== 'editing') {
+            return
+        }
+        setCompState({ type: 'normal', showMore: false, content: compState.editingContent })
+    }
+    function cancelEdit() {
+        if (compState.type !== 'editing') {
+            return
+        }
+        setCompState({ type: 'normal', showMore: false, content: compState.originalContent })
+    }
+    async function startPlaying() {
+        if (compState.type !== 'normal') {
+            return
+        }
+        const utterance = new SpeechSynthesisUtterance();
+        // TODO detect the text language
+        utterance.lang = 'en-US';
+        const allVoices: SpeechSynthesisVoice[] = [];
+        const getVoices = () => {
+            const voices = speechSynthesis.getVoices();
+            if (voices.length > 0) {
+                allVoices.push(...voices);
+            } else {
+                setTimeout(getVoices, 100);
+            }
+        };
+        getVoices();
+        let prefferedVoice: SpeechSynthesisVoice | undefined = undefined;
+        const preferredVoices = ['Google US English', 'Nicky', 'Karen', 'Aaron', 'Gordon', 'Google UK English Male', 'Google UK English Female', 'Catherine']
+        while (allVoices.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        for (const name of preferredVoices) {
+            for (const voice of allVoices) {
+                if (voice.name === name) {
+                    prefferedVoice = voice;
+                    break;
+                }
+            }
+            if (prefferedVoice !== undefined) {
+                break;
+            }
+        }
+        if (prefferedVoice !== undefined) {
+            utterance.voice = prefferedVoice;
+        }
+        // https://stackoverflow.com/questions/21947730/chrome-speech-synthesis-with-longer-texts
+        let myTimeout: NodeJS.Timeout
+        function myTimer() {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+            myTimeout = setTimeout(myTimer, 10000);
+        }
+        window.speechSynthesis.cancel()
+        myTimeout = setTimeout(myTimer, 10000)
+        utterance.text = compState.content
+        utterance.onend = () => {
+            clearTimeout(myTimeout)
+            setCompState({ type: 'normal', content: compState.content, showMore: true })
+        }
+        setCompState({ ...compState, type: 'playingAudio' })
+        window.speechSynthesis.speak(utterance)
+    }
+    async function stopPlaying() {
+        if (!isPlaying) {
+            return
+        }
+        window.speechSynthesis.cancel()
+        setCompState({ type: 'normal', showMore: true, content: compState.content })
+    }
+
+    return <div className={`flex flex-col ${className}`}
+        onMouseEnter={() => { setShowMore(true) }} onMouseLeave={() => { setShowMore(false) }}>
+        <Role className="mb-2" name={messageIns.role} />
+        {!isEditing && <MessageContent content={compState.content} />}
+        {isEditing &&
+            <div className="bg-[#F6F5F5] rounded-lg max-w-[80%] p-4">
+                <textarea className="w-full bg-[#F6F5F5] h-32 resize-none focus:outline-none"
+                    value={compState.editingContent} onChange={(e) => { setCompState({ type: 'editing', editingContent: e.target.value, originalContent: compState.originalContent }) }
+                    } />
+                <div className="flex flex-row">
+                    <button className="rounded-2xl border border-gray-300 bg-white p-2 mr-2"
+                        onClick={() => {
+                            cancelEdit()
+                        }}>
+                        Cancel
+                    </button>
+                    <button className="rounded-2xl bg-black text-white p-2"
+                        onClick={() => {
+                            updateMessage(messageID, messageIns.updateContent(compState.editingContent)) // TODO error handling
+                            saveEdit()
+                        }}>Save</button>
+                </div>
+            </div>
+        }
+        <div className={`flex flex-row mt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
+            <div className="mr-2 cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
+                {isPlaying ? <FaStopCircle color="#898989" size={25} /> : <HiMiniSpeakerWave color="#898989" size={25} />}
+            </div>
+            <TbPencil className="cursor-pointer" size={25} color="#898989"
+                onClick={() => {
+                    toEditingState()
+                }} />
+        </div>
+    </div>
+}
+
+export function TextMessageComponent({ message, messageID, updateMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) {
+    const textMessage = message as TextMessage
+    const [compState, setCompState] = useState<textMessageState>({ type: 'normal', showMore: false, content: textMessage.content })
+    return <ControlledTextMessageComponent messageIns={textMessage} compState={compState} setCompState={setCompState} messageID={messageID} updateMessage={updateMessage} className={className} />
+}
+
 type textMessageState =
     | { type: 'normal', showMore: boolean, content: string }
-    | { type: 'playingAudio', content: string, audioIns: SpeechSynthesisUtterance }
-    | { type: 'editing', editingContent: string, originalContent: string }
+    | { type: 'playingAudio', content: string }
+    | { type: 'editing', editingContent: string, originalContent: string };
 
 export class TextMessage extends Message {
-    isEmpty(): boolean {
-        return this.content.trim() === '';
-    }
     readonly content: string
 
     constructor(role: string, content: string, displayToUser: boolean = true, includedInChatCompletion: boolean = true) {
@@ -154,136 +294,143 @@ export class TextMessage extends Message {
         return new TextMessage(this.role, content, this.displayToUser, this.includedInChatCompletion)
     }
 
-    render() {
-        const Root = ({ updateMessage, className }: { updateMessage: (message: Message) => void, className?: string }) => {
-            const [compState, setCompState] = useState<textMessageState>({ type: 'normal', showMore: false, content: this.content })
-            const showMore = (compState.type === 'normal' && compState.showMore)
-                || compState.type === 'playingAudio' // you will want to keep the buttons showing while playing the audio
-            const isEditing = (compState.type === 'editing')
-            const isPlaying = compState.type === 'playingAudio'
+    // make it reusable for other message components
+    renderControlled = ({ compState, setCompState, messageID, updateMessage, className }: {
+        compState: textMessageState,
+        setCompState: React.Dispatch<React.SetStateAction<textMessageState>>,
+        messageID: number,
+        updateMessage: (messageID: number, message: Message) => void,
+        className?: string
+    }) => {
+        const showMore = (compState.type === 'normal' && compState.showMore)
+            || compState.type === 'playingAudio' // you will want to keep the buttons showing while playing the audio
+        const isEditing = (compState.type === 'editing')
+        const isPlaying = compState.type === 'playingAudio'
 
-            // state convertors
-            function setShowMore(showMore: boolean): void {
-                if (compState.type !== 'normal') {
-                    return
-                }
-                setCompState({ ...compState, showMore: showMore })
+        // state convertors
+        function setShowMore(showMore: boolean): void {
+            if (compState.type !== 'normal') {
+                return
             }
-            const toEditingState = () => {
-                if (compState.type === 'editing') {
-                    return
-                }
-                setCompState({ type: 'editing', editingContent: compState.content, originalContent: compState.content })
+            setCompState({ ...compState, showMore: showMore })
+        }
+        const toEditingState = () => {
+            if (compState.type === 'editing') {
+                return
             }
-            function saveEdit() {
-                if (compState.type !== 'editing') {
-                    return
-                }
-                setCompState({ type: 'normal', showMore: false, content: compState.editingContent })
+            setCompState({ type: 'editing', editingContent: compState.content, originalContent: compState.content })
+        }
+        function saveEdit() {
+            if (compState.type !== 'editing') {
+                return
             }
-            function cancelEdit() {
-                if (compState.type !== 'editing') {
-                    return
-                }
-                setCompState({ type: 'normal', showMore: false, content: compState.originalContent })
+            setCompState({ type: 'normal', showMore: false, content: compState.editingContent })
+        }
+        function cancelEdit() {
+            if (compState.type !== 'editing') {
+                return
             }
-            async function startPlaying() {
-                if (compState.type !== 'normal') {
-                    return
+            setCompState({ type: 'normal', showMore: false, content: compState.originalContent })
+        }
+        async function startPlaying() {
+            if (compState.type !== 'normal') {
+                return
+            }
+            const utterance = new SpeechSynthesisUtterance();
+            // TODO detect the text language
+            utterance.lang = 'en-US';
+            const allVoices: SpeechSynthesisVoice[] = [];
+            const getVoices = () => {
+                const voices = speechSynthesis.getVoices();
+                if (voices.length > 0) {
+                    allVoices.push(...voices);
+                } else {
+                    setTimeout(getVoices, 100);
                 }
-                const utterance = new SpeechSynthesisUtterance();
-                // TODO detect the text language
-                utterance.lang = 'en-US';
-                const allVoices: SpeechSynthesisVoice[] = [];
-                const getVoices = () => {
-                    const voices = speechSynthesis.getVoices();
-                    if (voices.length > 0) {
-                        allVoices.push(...voices);
-                    } else {
-                        setTimeout(getVoices, 100);
-                    }
-                };
-                getVoices();
-                let prefferedVoice: SpeechSynthesisVoice | undefined = undefined;
-                const preferredVoices = ['Google US English', 'Nicky', 'Karen', 'Aaron', 'Gordon', 'Google UK English Male', 'Google UK English Female', 'Catherine']
-                while (allVoices.length === 0) {
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                }
-                for (const name of preferredVoices) {
-                    for (const voice of allVoices) {
-                        if (voice.name === name) {
-                            prefferedVoice = voice;
-                            break;
-                        }
-                    }
-                    if (prefferedVoice !== undefined) {
+            };
+            getVoices();
+            let prefferedVoice: SpeechSynthesisVoice | undefined = undefined;
+            const preferredVoices = ['Google US English', 'Nicky', 'Karen', 'Aaron', 'Gordon', 'Google UK English Male', 'Google UK English Female', 'Catherine']
+            while (allVoices.length === 0) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            for (const name of preferredVoices) {
+                for (const voice of allVoices) {
+                    if (voice.name === name) {
+                        prefferedVoice = voice;
                         break;
                     }
                 }
                 if (prefferedVoice !== undefined) {
-                    utterance.voice = prefferedVoice;
+                    break;
                 }
-                // https://stackoverflow.com/questions/21947730/chrome-speech-synthesis-with-longer-texts
-                let myTimeout: NodeJS.Timeout
-                function myTimer() {
-                    window.speechSynthesis.pause();
-                    window.speechSynthesis.resume();
-                    myTimeout = setTimeout(myTimer, 10000);
-                }
-                window.speechSynthesis.cancel()
-                myTimeout = setTimeout(myTimer, 10000)
-                utterance.text = compState.content
-                utterance.onend = () => {
-                    clearTimeout(myTimeout)
-                    setCompState({ type: 'normal', content: compState.content, showMore: true })
-                }
-                setCompState({ ...compState, type: 'playingAudio', audioIns: utterance })
-                window.speechSynthesis.speak(utterance)
             }
-            async function stopPlaying() {
-                if (!isPlaying) {
-                    return
-                }
-                window.speechSynthesis.cancel()
-                setCompState({ type: 'normal', showMore: true, content: compState.content })
+            if (prefferedVoice !== undefined) {
+                utterance.voice = prefferedVoice;
             }
-
-            return <div className={`flex flex-col ${className}`}
-                onMouseEnter={() => { setShowMore(true) }} onMouseLeave={() => { setShowMore(false) }}>
-                <Role className="mb-2" name={this.role} />
-                {!isEditing && <MessageContent content={compState.content} />}
-                {isEditing &&
-                    <div className="bg-[#F6F5F5] rounded-lg max-w-[80%] p-4">
-                        <textarea className="w-full bg-[#F6F5F5] h-32 resize-none focus:outline-none"
-                            value={compState.editingContent} onChange={(e) => { setCompState({ type: 'editing', editingContent: e.target.value, originalContent: compState.originalContent }) }
-                            } />
-                        <div className="flex flex-row">
-                            <button className="rounded-2xl border border-gray-300 bg-white p-2 mr-2"
-                                onClick={() => {
-                                    cancelEdit()
-                                }}>
-                                Cancel
-                            </button>
-                            <button className="rounded-2xl bg-black text-white p-2"
-                                onClick={() => {
-                                    updateMessage(this.updateContent(compState.editingContent)) // TODO error handling
-                                    saveEdit()
-                                }}>Save</button>
-                        </div>
-                    </div>
-                }
-                <div className={`flex flex-row mt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
-                    <div className="mr-2 cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
-                        {isPlaying ? <FaStopCircle color="#898989" size={25} /> : <HiMiniSpeakerWave color="#898989" size={25} />}
-                    </div>
-                    <TbPencil className="cursor-pointer" size={25} color="#898989"
-                        onClick={() => {
-                            toEditingState()
-                        }} />
-                </div>
-            </div>
+            // https://stackoverflow.com/questions/21947730/chrome-speech-synthesis-with-longer-texts
+            let myTimeout: NodeJS.Timeout
+            function myTimer() {
+                window.speechSynthesis.pause();
+                window.speechSynthesis.resume();
+                myTimeout = setTimeout(myTimer, 10000);
+            }
+            window.speechSynthesis.cancel()
+            myTimeout = setTimeout(myTimer, 10000)
+            utterance.text = compState.content
+            utterance.onend = () => {
+                clearTimeout(myTimeout)
+                setCompState({ type: 'normal', content: compState.content, showMore: true })
+            }
+            setCompState({ ...compState, type: 'playingAudio' })
+            window.speechSynthesis.speak(utterance)
         }
-        return Root
+        async function stopPlaying() {
+            if (!isPlaying) {
+                return
+            }
+            window.speechSynthesis.cancel()
+            setCompState({ type: 'normal', showMore: true, content: compState.content })
+        }
+
+        return <div className={`flex flex-col ${className}`}
+            onMouseEnter={() => { setShowMore(true) }} onMouseLeave={() => { setShowMore(false) }}>
+            <Role className="mb-2" name={this.role} />
+            {!isEditing && <MessageContent content={compState.content} />}
+            {isEditing &&
+                <div className="bg-[#F6F5F5] rounded-lg max-w-[80%] p-4">
+                    <textarea className="w-full bg-[#F6F5F5] h-32 resize-none focus:outline-none"
+                        value={compState.editingContent} onChange={(e) => { setCompState({ type: 'editing', editingContent: e.target.value, originalContent: compState.originalContent }) }
+                        } />
+                    <div className="flex flex-row">
+                        <button className="rounded-2xl border border-gray-300 bg-white p-2 mr-2"
+                            onClick={() => {
+                                cancelEdit()
+                            }}>
+                            Cancel
+                        </button>
+                        <button className="rounded-2xl bg-black text-white p-2"
+                            onClick={() => {
+                                updateMessage(messageID, this.updateContent(compState.editingContent)) // TODO error handling
+                                saveEdit()
+                            }}>Save</button>
+                    </div>
+                </div>
+            }
+            <div className={`flex flex-row mt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
+                <div className="mr-2 cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
+                    {isPlaying ? <FaStopCircle color="#898989" size={25} /> : <HiMiniSpeakerWave color="#898989" size={25} />}
+                </div>
+                <TbPencil className="cursor-pointer" size={25} color="#898989"
+                    onClick={() => {
+                        toEditingState()
+                    }} />
+            </div>
+        </div>
+    }
+
+    component() {
+        return TextMessageComponent
     }
 
     toJSON(): { role: string, content: string } {
@@ -305,214 +452,23 @@ export class TextMessage extends Message {
         return new TextMessage(role, content, displayToUser, includedInChatCompletion);
     }
 
+    isEmpty(): boolean {
+        return this.content.trim() === '';
+    }
 }
 
 export class StreamingTextMessage extends Message {
-    isEmpty(): boolean {
-        return this.consumedChunks.join('').trim() === '';
-    }
-
-    private streamingGenerator: AsyncGenerator<string, void, unknown>
-    private consumedChunks: string[] = []
-    private finished: boolean = false
+    streamingGenerator: AsyncGenerator<string, void, unknown>
+    consumedChunks: string[] = []
+    finished: boolean = false
 
     constructor(role: string, streamingGenerator: AsyncGenerator<string, void, unknown>) {
         super(MessageTypes.STREAMING_TEXT, role, true, false)
         this.streamingGenerator = streamingGenerator
     }
 
-    render() {
-        const Root = ({ updateMessage: persistMessage, className }: { updateMessage: (message: Message) => void, className?: string }) => {
-
-            type MessageState =
-                | { type: 'init' }
-                | { type: 'streaming', streamingContent: string, playing: boolean }
-                | { type: 'finished', content: string }
-            const [msgState, setMsgState] = useState<MessageState>({ type: 'init' })
-            const stateRef = useRef(msgState)
-            const finished = msgState.type === 'finished'
-            const isPlaying = msgState.type === 'streaming' && msgState.playing
-
-            const TextMsg = new TextMessage(this.role, finished ? msgState.content : '', true, true).render()
-
-            // TODO: Issues exist with strict mode
-            useEffect(() => {
-                startStreaming()
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-            }, []);
-
-            // state convertors
-            const startStreaming = () => {
-                if (msgState.type !== 'init') {
-                    return
-                }
-                const iterator = this.streamingGenerator[Symbol.asyncIterator]();
-
-                const autoPlay = true // TODO read from settings
-                let _finished = false
-                const buffer: string[] = []
-                const splited: string[] = []
-
-                const processChunk = async () => {
-                    for await (const value of iterator) {
-                        this.consumedChunks.push(value);
-                        persistMessage(this);
-                        if (stateRef.current.type === 'init') {
-                            setMsgState({ 'type': 'streaming', streamingContent: value, playing: false })
-                            stateRef.current = { 'type': 'streaming', streamingContent: value, playing: false }
-                        } else if (stateRef.current.type === 'streaming') {
-                            setMsgState({ 'type': 'streaming', streamingContent: stateRef.current.streamingContent + value, playing: stateRef.current.playing })
-                            stateRef.current = { 'type': 'streaming', streamingContent: stateRef.current.streamingContent + value, playing: stateRef.current.playing }
-                        }
-                        if (autoPlay) {
-                            buffer.push(value)
-                            // try to split the first sentence from buffer, if so, send it to splited channel
-                            const sentenceEndings = /([.!?。！？,，;；:：\n])/g;
-                            const sentences = buffer.join('').split(sentenceEndings);
-                            if (sentences.length > 1) {
-                                const firstSentence = sentences[0] + sentences[1];
-                                if (firstSentence !== '') {
-                                    splited.push(firstSentence)
-                                    buffer.length = 0
-                                    buffer.push(sentences.slice(2).join(''))
-                                }
-                            }
-                        }
-                    }
-                    if (autoPlay && buffer.length > 0) {
-                        splited.push(buffer.join(''))
-                        buffer.length = 0
-                    }
-                    if (autoPlay && splited.length > 0) {
-                        const left = splited.join('')
-                        splited.length = 0
-                        splited.push(left)
-                    }
-                    persistMessage(new TextMessage(this.role, this.consumedChunks.join(''), true, true))
-                    _finished = true
-                    setMsgState({ type: 'finished', content: this.consumedChunks.join('') })
-                    stateRef.current = { type: 'finished', content: this.consumedChunks.join('') }
-                };
-
-                const playAudioFromBuffer = async () => {
-                    const allVoices: SpeechSynthesisVoice[] = [];
-                    let prefferedVoice: SpeechSynthesisVoice | undefined = undefined
-                    // https://stackoverflow.com/questions/49506716/speechsynthesis-getvoices-returns-empty-array-on-windows
-                    const tryLoadVoices = () => {
-                        if (allVoices.length > 0) { return }
-                        const voices = speechSynthesis.getVoices();
-                        if (voices.length > 0) {
-                            allVoices.push(...voices);
-                        } else {
-                            setTimeout(tryLoadVoices, 100);
-                        }
-                    };
-                    tryLoadVoices();
-                    // https://stackoverflow.com/questions/21947730/chrome-speech-synthesis-with-longer-texts
-                    let myTimeout: NodeJS.Timeout
-                    function myTimer() {
-                        window.speechSynthesis.pause();
-                        window.speechSynthesis.resume();
-                        myTimeout = setTimeout(myTimer, 10000);
-                    }
-                    window.speechSynthesis.cancel()
-                    myTimeout = setTimeout(myTimer, 10000)
-
-                    let isFirstUtt = true
-                    while (!_finished || splited.length > 0) {
-                        if (splited.length === 0) {
-                            await new Promise(resolve => setTimeout(resolve, 50));
-                            continue
-                        }
-                        const text = splited.shift()!
-                        const utterance = new SpeechSynthesisUtterance(text);
-                        utterance.lang = 'en-US';
-                        if (prefferedVoice === undefined) {
-                            const preferredVoices = ['Google US English', 'Nicky', 'Karen', 'Aaron', 'Gordon', 'Google UK English Male', 'Google UK English Female', 'Catherine']
-                            // wait until voices have been loaded
-                            while (allVoices.length === 0) {
-                                await new Promise(resolve => setTimeout(resolve, 100));
-                            }
-                            for (const name of preferredVoices) {
-                                for (const voice of allVoices) {
-                                    if (voice.name === name) {
-                                        prefferedVoice = voice
-                                        break
-                                    }
-                                }
-                                if (prefferedVoice !== undefined) {
-                                    break
-                                }
-                            }
-                        }
-                        if (prefferedVoice !== undefined) {
-                            utterance.voice = prefferedVoice
-                        }
-                        utterance.text = text
-                        utterance.onend = () => {
-                            clearTimeout(myTimeout)
-                        }
-                        if (isFirstUtt) {
-                            // when the first utterance starts speaking, set playing=true
-                            setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true })
-                            stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true }
-                            isFirstUtt = false
-                        }
-                        window.speechSynthesis.speak(utterance)
-                        await new Promise(resolve => {
-                            utterance.onend = resolve;
-                        });
-                    }
-                }
-
-                processChunk()
-                if (autoPlay) {
-                    playAudioFromBuffer()
-                }
-            }
-            const stopPlaying = () => {
-                if (msgState.type !== 'streaming' || !msgState.playing) {
-                    return
-                }
-                window.speechSynthesis.cancel()
-                setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false })
-                stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false }
-            }
-
-            return (
-                <>
-                    {/* if not finished, render as streaming message */}
-                    {!finished &&
-                        <div className="flex flex-col">
-                            {/* message content */}
-                            <div className={`flex flex-col ${className}`}>
-                                <Role className="mb-2" name={this.role} />
-                                <div className={`bg-[#F6F5F5] rounded-lg w-fit max-w-[80%] p-2 ${className}`}>
-                                    {msgState.type === 'init' &&
-                                        <ThreeDots color="#959595" height={15} width={15} />
-                                    }
-                                    {msgState.type === 'streaming' &&
-                                        <div dangerouslySetInnerHTML={{ __html: msgState.streamingContent.replace(/\n/g, '<br />') }} />
-                                    }
-                                </div>
-                            </div>
-                            {/* control buttons */}
-                            <div className={`flex flex-row mt-1 pl-1`}>
-                                {isPlaying &&
-                                    <div className="mr-2 cursor-pointer" onClick={stopPlaying}>
-                                        <FaStopCircle color="#898989" size={25} />
-                                    </div>
-                                }
-                            </div>
-                        </div>
-
-                    }
-                    {/* if finished, render as normal text message */}
-                    {finished && <TextMsg updateMessage={persistMessage} className={className} />}
-                </>
-            );
-        }
-        return Root
+    component() {
+        return StreamingTextMessageComponent
     }
 
     static deserialize(serialized: string): TextMessage {
@@ -539,12 +495,255 @@ export class StreamingTextMessage extends Message {
         }
     }
 
+    isEmpty(): boolean {
+        return this.consumedChunks.join('').trim() === '';
+    }
+}
+
+const StreamingTextMessageComponent = ({ message: _message, messageID, updateMessage: persistMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) => {
+
+    const message = _message as StreamingTextMessage
+    type MessageState =
+        | { type: 'init' }
+        | { type: 'streaming', streamingContent: string, playing: boolean }
+        | { type: 'finished', content: string }
+    const [msgState, setMsgState] = useState<MessageState>({ type: 'init' })
+    const stateRef = useRef(msgState)
+    const finished = msgState.type === 'finished'
+    const isPlaying = msgState.type === 'streaming' && msgState.playing
+
+    const [textMsgState, setTextMsgState] = useState<textMessageState>({ type: 'normal', showMore: false, content: '' }) // TODO maybe useRef?
+
+    // state convertors
+    const stopPlaying = () => {
+        if (msgState.type !== 'streaming' || !msgState.playing) {
+            return
+        }
+        window.speechSynthesis.cancel()
+        setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false })
+        stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false }
+    }
+
+    // TODO: Issues exist with strict mode
+    useEffect(() => {
+        const startStreaming = () => {
+            const iterator = message.streamingGenerator[Symbol.asyncIterator]();
+
+            const autoPlay = true // TODO read from settings
+            let _finished = false
+            let unmounted = false
+            const buffer: string[] = []
+            const splited: string[] = []
+
+            const processChunk = async () => {
+                for await (const value of iterator) {
+                    if (unmounted) {
+                        return
+                    }
+                    message.consumedChunks.push(value);
+                    persistMessage(messageID, message);
+                    if (stateRef.current.type === 'init') {
+                        setMsgState({ 'type': 'streaming', streamingContent: value, playing: false })
+                        stateRef.current = { 'type': 'streaming', streamingContent: value, playing: false }
+                    } else if (stateRef.current.type === 'streaming') {
+                        setMsgState({ 'type': 'streaming', streamingContent: stateRef.current.streamingContent + value, playing: stateRef.current.playing })
+                        stateRef.current = { 'type': 'streaming', streamingContent: stateRef.current.streamingContent + value, playing: stateRef.current.playing }
+                    }
+                    if (autoPlay) {
+                        buffer.push(value)
+                        // try to split the first sentence from buffer, if so, send it to splited channel
+                        const sentenceEndings = /([.!?。！？,，;；:：\n])/g;
+                        const sentences = buffer.join('').split(sentenceEndings);
+                        if (sentences.length > 1) {
+                            const firstSentence = sentences[0] + sentences[1];
+                            if (firstSentence !== '') {
+                                splited.push(firstSentence)
+                                buffer.length = 0
+                                buffer.push(sentences.slice(2).join(''))
+                            }
+                        }
+                    }
+                }
+                if (autoPlay && buffer.length > 0) {
+                    splited.push(buffer.join(''))
+                    buffer.length = 0
+                }
+                if (autoPlay && splited.length > 0) {
+                    const left = splited.join('')
+                    splited.length = 0
+                    splited.push(left)
+                }
+                persistMessage(messageID, message)
+                _finished = true
+                setMsgState({ type: 'finished', content: message.consumedChunks.join('') })
+                // if autoPlay is on, the TextMessage component should be in 'playingAudio' mode while rendering
+                if (autoPlay) {
+                    setTextMsgState({ type: 'playingAudio', content: message.consumedChunks.join('') })
+                }
+                stateRef.current = { type: 'finished', content: message.consumedChunks.join('') }
+            };
+
+            const playAudioFromBuffer = async () => {
+                // avoid garbage collection issues
+                // https://stackoverflow.com/questions/23483990/speechsynthesis-api-onend-callback-not-working
+                const utterances = [];
+                const allVoices: SpeechSynthesisVoice[] = [];
+                let prefferedVoice: SpeechSynthesisVoice | undefined = undefined
+                const tryLoadingVoices = () => {
+                    // https://stackoverflow.com/questions/49506716/speechsynthesis-getvoices-returns-empty-array-on-windows
+                    if (allVoices.length > 0) { return }
+                    const voices = speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                        allVoices.push(...voices);
+                    } else {
+                        setTimeout(tryLoadingVoices, 100);
+                    }
+                };
+                tryLoadingVoices();
+                // https://stackoverflow.com/questions/21947730/chrome-speech-synthesis-with-longer-texts
+                let myTimeout: NodeJS.Timeout
+                function myTimer() {
+                    window.speechSynthesis.pause();
+                    window.speechSynthesis.resume();
+                    myTimeout = setTimeout(myTimer, 10000);
+                }
+                window.speechSynthesis.cancel()
+                myTimeout = setTimeout(myTimer, 10000)
+
+                let isFirstUtt = true
+                while (!_finished || splited.length > 0) {
+                    if (unmounted) {
+                        return
+                    }
+                    if (splited.length === 0) {
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                        continue
+                    }
+                    const text = splited.shift()!
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    utterance.lang = 'en-US';
+                    if (prefferedVoice === undefined) {
+                        const preferredVoices = ['Google US English', 'Nicky', 'Karen', 'Aaron', 'Gordon', 'Google UK English Male', 'Google UK English Female', 'Catherine']
+                        // wait until voices have been loaded
+                        while (allVoices.length === 0) {
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        }
+                        for (const name of preferredVoices) {
+                            for (const voice of allVoices) {
+                                if (voice.name === name) {
+                                    prefferedVoice = voice
+                                    break
+                                }
+                            }
+                            if (prefferedVoice !== undefined) {
+                                break
+                            }
+                        }
+                    }
+                    if (prefferedVoice !== undefined) {
+                        utterance.voice = prefferedVoice
+                    }
+                    utterances.push(utterance)
+                    utterance.text = text
+                    utterance.onend = () => {
+                        clearTimeout(myTimeout)
+                    }
+                    if (isFirstUtt) {
+                        // when the first utterance starts speaking, set playing=true
+                        setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true })
+                        stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true }
+                        isFirstUtt = false
+                    }
+                    if (_finished && buffer.length === 0) {
+                        // when the last utterance is finished, set the text message to normal state
+                        // the reason why not use utterance.onend callback:
+                        // https://stackoverflow.com/questions/23483990/speechsynthesis-api-onend-callback-not-working
+                        // BECAUSE IT DOES NOT WORK !
+                        utterance.addEventListener('end', () => {
+                            if (!window.speechSynthesis.speaking) {
+                                setTextMsgState((prev) => {
+                                    if (prev.type === 'playingAudio') {
+                                        return { type: 'normal', content: prev.content, showMore: false }
+                                    }
+                                    return prev
+                                })
+                                return;
+                            }
+                        })
+                        // const _wait = () => {
+                        //     if (!window.speechSynthesis.speaking) {
+                        //         setTextMsgState((prev) => {
+                        //             if (prev.type === 'playingAudio') {
+                        //                 return { type: 'normal', content: prev.content, showMore: false }
+                        //             }
+                        //             return prev
+                        //         })
+                        //         return;
+                        //     }
+                        //     window.setTimeout(_wait, 200);
+                        // }
+                        // _wait();
+                    }
+                    window.speechSynthesis.speak(utterance)
+                    await new Promise(resolve => {
+                        utterance.onend = resolve;
+                    });
+                }
+            }
+
+            processChunk()
+            if (autoPlay) {
+                playAudioFromBuffer()
+            }
+            return () => {
+                unmounted = true
+            }
+        }
+        const informUnmounted = startStreaming()
+        return () => {
+            window.speechSynthesis.cancel()
+            if (informUnmounted) { informUnmounted() }
+        }
+    }, [message, messageID, persistMessage]);
+
+    return (
+        <>
+            {/* if not finished, render as streaming message */}
+            {!finished &&
+                <div className="flex flex-col">
+                    {/* message content */}
+                    <div className={`flex flex-col ${className}`}>
+                        <Role className="mb-2" name={message.role} />
+                        <div className={`bg-[#F6F5F5] rounded-lg w-fit max-w-[80%] p-2 ${className}`}>
+                            {msgState.type === 'init' &&
+                                <ThreeDots color="#959595" height={15} width={15} />
+                            }
+                            {msgState.type === 'streaming' &&
+                                <div dangerouslySetInnerHTML={{ __html: msgState.streamingContent.replace(/\n/g, '<br />') }} />
+                            }
+                        </div>
+                    </div>
+                    {/* control buttons */}
+                    <div className={`flex flex-row mt-1 pl-1`}>
+                        {isPlaying &&
+                            <div className="mr-2 cursor-pointer" onClick={stopPlaying}>
+                                <FaStopCircle color="#898989" size={25} />
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            }
+            {/* if finished, render as normal text message */}
+            {finished && <ControlledTextMessageComponent
+                messageIns={new TextMessage(message.role, finished ? msgState.content : '', true, true)}
+                compState={textMsgState} setCompState={setTextMsgState} messageID={messageID} updateMessage={persistMessage} className={className} />
+            }
+        </>
+    );
 }
 
 export class RecommendedRespMessage extends Message {
-    isEmpty(): boolean {
-        return false
-    }
     recommendedContent: string
 
     constructor(role: string, recommendedContent: string, displayToUser: boolean = true, includedInChatCompletion: boolean = true) {
@@ -552,7 +751,7 @@ export class RecommendedRespMessage extends Message {
         this.recommendedContent = recommendedContent
     }
 
-    render() {
+    component() {
         const Root = ({ className }: { className?: string }) => {
             return <div className={`flex flex-col ${className}`}>
                 <Role className="mb-2" name={this.role} />
@@ -598,6 +797,10 @@ export class RecommendedRespMessage extends Message {
     static deserialize(serialized: string): RecommendedRespMessage {
         const { role, recommendedContent, displayToUser, includedInChatCompletion } = JSON.parse(serialized);
         return new RecommendedRespMessage(role, recommendedContent, displayToUser, includedInChatCompletion);
+    }
+
+    isEmpty(): boolean {
+        return false
     }
 }
 

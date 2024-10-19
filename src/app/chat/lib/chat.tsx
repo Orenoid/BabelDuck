@@ -50,7 +50,7 @@ export function LoadChatByIDFromLocalStorage(chatID: string): Message[] {
     return messageList;
 }
 
-export function UpdateMessageInChat(chatID: string, messageID: number, serialized: string): void {
+export function persistMessageUpdateInChat(chatID: string, messageID: number, updateMessage: Message): void {
     // 从 localStorage 读取现有的消息列表
     const messageListJSON = localStorage.getItem(`chat_${chatID}`);
     const messageList: string[] = messageListJSON ? JSON.parse(messageListJSON) : [];
@@ -62,7 +62,7 @@ export function UpdateMessageInChat(chatID: string, messageID: number, serialize
     }
 
     // 更新消息
-    messageList[messageID] = serialized;
+    messageList[messageID] = updateMessage.serialize();
 
     // 更新 localStorage 中的消息列表
     localStorage.setItem(`chat_${chatID}`, JSON.stringify(messageList));
