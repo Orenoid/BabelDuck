@@ -280,6 +280,11 @@ export function IconSquareWrapper({ children }: { children: React.ReactNode }): 
     </div>
 }
 
+export function IconCircleWrapper({ children }: { children: React.ReactNode }): JSX.Element {
+    return <div className="flex items-center cursor-pointer justify-center w-[40px] h-[40px] rounded-full hover:bg-gray-300">
+        {children}
+    </div>
+}
 
 export function TextMessageComponent({ message, messageID, updateMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) {
     const textMessage = message as TextMessage

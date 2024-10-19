@@ -7,7 +7,7 @@ import { MdGTranslate } from "react-icons/md";
 import { TbPencilQuestion } from "react-icons/tb";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
-import { TextMessage } from "./message";
+import { IconCircleWrapper, TextMessage } from "./message";
 import { diffChars } from "diff";
 import { LiaComments } from "react-icons/lia";
 import { PiKeyReturnBold } from "react-icons/pi";
@@ -290,17 +290,21 @@ export function MessageInput({
                 {defaultUtils.map((icon, index) => {
                     // loading effect while revising
                     if (compState.type === 'revising' && compState.revisingIndex === index) {
-                        return <div className="p-1 mr-1 w-[28px]" key={index}>
+                        return <IconCircleWrapper key={index}>
                             <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
-                        </div>;
+                        </IconCircleWrapper>
                     }
                     // icons to display in normal status
-                    return <div className="p-1 mr-1 w-[28px] bg-transparent hover:bg-gray-300 rounded" key={index}><button className="" key={index}
-                        onClick={() => {
-                            const ii = index;
-                            startRevising(ii);
-                        }}>{icon.iconNode}
-                    </button></div>;
+                    return <IconCircleWrapper key={index}>
+                        <button className="" key={index}
+                            onClick={() => {
+                                const ii = index;
+                                startRevising(ii);
+                            }}>{icon.iconNode}
+                        </button>
+                    </IconCircleWrapper>
+                    //     <div className="p-1 mr-1 w-[28px] bg-transparent hover:bg-gray-300 rounded" key={index}>
+                    // </div>;
                 })}
             </div>
         </div>
@@ -528,7 +532,7 @@ function TextInput(
                 }
             }}
             onKeyDown={(e) => {
-                if (e.key === 'v' && !(e.metaKey || e.ctrlKey) ) {
+                if (e.key === 'v' && !(e.metaKey || e.ctrlKey)) {
                     e.preventDefault()
                     enableVoiceModeShortcutTimer = setTimeout(() => {
                         enableVoiceMode()
