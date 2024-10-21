@@ -40,3 +40,8 @@ type MessageComponent = ({ }: {
     updateMessage: (messageID: number, message: Message) => void,
     className?: string
 }) => JSX.Element
+
+// some extandable interaces
+export interface IndependentContentMsg {
+    messageContent: () => JSX.Element
+}
