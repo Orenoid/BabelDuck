@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AddMesssageInChat, ChatLoader, persistMessageUpdateInChat as updateMessageInChat } from "../lib/chat"; // Changed to type-only import
+import { AddMesssageInChat, ChatLoader, loadInputHandlers, persistMessageUpdateInChat as updateMessageInChat } from "../lib/chat"; // Changed to type-only import
 import { chatCompletionInStream } from "../lib/chat-server";
 import { useImmer } from "use-immer";
 import { type Message } from "../lib/message";
 import { RecommendedRespMessage, SpecialRoleTypes as SpecialRoles, StreamingTextMessage, TextMessage } from "./message";
 import { IoIosArrowDown } from "react-icons/io";
 import { readStreamableValue } from "ai/rsc";
-import { MessageInput } from "./input";
+import { InputHandler, MessageInput } from "./input";
 
 export function Chat({ chatID, loadChatByID, className = "" }: {
     chatID: string,
@@ -19,12 +19,15 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
     const [messageListStack, updateMessageListStack] = useImmer<Message[][]>([])
     const isTopLevel = messageListStack.length <= 1
     const currentMessageList = messageListStack.length > 0 ? messageListStack[messageListStack.length - 1] : []
+    const [inputHandlers, setInputHandlers] = useState<InputHandler[]>([])
     const [inputCompKey, setInputCompKey] = useState(0) // for force reset
     const [chatKey, setChatKey] = useState(0) // for informing children that current chat has switched
 
     useEffect(() => {
         const messageList = loadChatByID(chatID)
+        const inputHandlers: InputHandler[] = loadInputHandlers(chatID)
         updateMessageListStack([messageList])
+        setInputHandlers(inputHandlers)
         setInputCompKey(prev => prev + 1)
     }, [chatID, loadChatByID, updateMessageListStack])
 
@@ -134,6 +137,7 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
         <MessageList className="flex-initial overflow-auto w-4/5 h-full" messageList={currentMessageList} updateMessage={updateMessage} />
         <MessageInput className="w-4/5"
             key={inputCompKey} chatKey={chatKey}
+            inputHandlers={inputHandlers}
             addMesssage={addMesssage} messageList={currentMessageList}
             // Temporarily forbid nested multi-level discussions, the component has already supported, 
             // it's just the AI might be unable to handle too many levels

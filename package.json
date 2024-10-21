@@ -23,6 +23,7 @@
     "react-loader-spinner": "^6.1.6",
     "react-redux": "^9.1.2",
     "react-switch": "^7.0.0",
+    "react-tooltip": "^5.28.0",
     "use-immer": "^0.10.0"
   },
   "devDependencies": {

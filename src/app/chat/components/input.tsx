@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { FaBackspace, FaMicrophone, FaSpellCheck } from "react-icons/fa";
 import { LuUserCog2 } from "react-icons/lu";
 import { MdGTranslate } from "react-icons/md";
-import { TbPencilQuestion } from "react-icons/tb";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
 import { IconCircleWrapper, TextMessage } from "./message";
@@ -15,38 +14,138 @@ import { Message } from "../lib/message";
 import { chatCompletion } from "../lib/chat-server";
 import Switch from "react-switch"
 import { IMediaRecorder } from "extendable-media-recorder";
+import { Tooltip } from "react-tooltip";
+import { TbPencilQuestion } from "react-icons/tb";
 
-enum UtilsTypes {
+enum InputHandlerTypes {
     Generation = "generation",
     Revision = "revision"
 }
 
+export abstract class InputHandler {
+    readonly implType: string
+    readonly type: InputHandlerTypes
 
-export interface UtilsEntry {
-    iconNode: React.ReactNode;
-    userInstruction: string;
-    type: UtilsTypes;
-    // allow the icon to specify a callback to handle its custom shortcut key
+    iconNode: React.ReactNode
     shortcutKeyCallback?: (e: React.KeyboardEvent) => boolean;
+    // TODO declare compatible message types
+
+    constructor(implType: string, type: InputHandlerTypes) {
+        this.implType = implType;
+        this.type = type;
+    }
+
+    abstract tooltip(lang: string): string
+    abstract instruction(): string
+
+    abstract serialize(): string;
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    static deserialize(serialized: string): InputHandler {
+        // Return an instance of a concrete subclass of InputHandler
+        // This is a placeholder and should be implemented by subclasses
+        throw new Error("Deserialization not implemented for InputHandler");
+    }
 }
 
-const defaultUtils: UtilsEntry[] = [
-    {
-        iconNode: <MdGTranslate size={20} />, userInstruction: "How do I say it in English to express the same meaning?",
-        type: UtilsTypes.Revision,
-        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === 'k' && (e.metaKey || e.ctrlKey)
-    },
-    {
-        iconNode: <TbPencilQuestion size={20} title="Ask AI to answer this question" />, userInstruction: "Help me respond to this message",
-        type: UtilsTypes.Generation,
-        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === '/' && (e.metaKey || e.ctrlKey)
-    },
-    {
-        iconNode: <FaSpellCheck size={20} className="ml-[-2px]" />, userInstruction: "Correct grammar issue",
-        type: UtilsTypes.Revision,
-        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey)
+export class TranslationHandler extends InputHandler {
+    targetLanguage: string
+
+    constructor(targetLanguage: string) {
+        super('translation', InputHandlerTypes.Revision)
+        this.targetLanguage = targetLanguage
+        this.iconNode = <MdGTranslate size={20} />
+        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'k' && (e.metaKey || e.ctrlKey)
     }
-];
+
+    tooltip(lang: string): string {
+        // TODO introduce real i18n solution
+        if (lang.startsWith("zh")) {
+            return `将消息内容翻译为 ${this.targetLanguage}`
+        } else {
+            return `Translate the message into ${this.targetLanguage}.`
+        }
+    }
+
+    instruction(): string {
+        return `Translate it into ${this.targetLanguage} to express the same meaning.`
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type,
+            targetLanguage: this.targetLanguage
+        });
+    }
+
+    static deserialize(serialized: string): TranslationHandler {
+        const { targetLanguage } = JSON.parse(serialized);
+        return new TranslationHandler(targetLanguage);
+    }
+}
+
+export class RespGenerationHandler extends InputHandler {
+    constructor() {
+        super('respGeneration', InputHandlerTypes.Generation);
+        this.iconNode = <TbPencilQuestion size={20} />;
+        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === '/' && (e.metaKey || e.ctrlKey);
+    }
+
+    tooltip(lang: string): string {
+        if (lang.startsWith("zh")) {
+            return "协助生成对应的回复";
+        } else {
+            return "Help generate a response.";
+        }
+    }
+
+    instruction(): string {
+        return "Help me respond it.";
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type
+        });
+    }
+
+    static deserialize(): RespGenerationHandler {
+        return new RespGenerationHandler();
+    }
+}
+
+export class GrammarCheckingHandler extends InputHandler {
+    constructor() {
+        super('grammarChecking', InputHandlerTypes.Revision);
+        this.iconNode = <FaSpellCheck size={20} className="ml-[-2px]" />;
+        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey);
+    }
+
+    tooltip(lang: string): string {
+        if (lang.startsWith("zh")) {
+            return "检查并修正可能存在的语法问题";
+        } else {
+            return "Correct potential grammar issues";
+        }
+    }
+
+    instruction(): string {
+        return "Correct potential grammar issues.";
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type
+        });
+    }
+
+    static deserialize(): GrammarCheckingHandler {
+        return new GrammarCheckingHandler();
+    }
+}
 
 export async function reviseMessage(
     messageToRevise: string,
@@ -195,9 +294,10 @@ export type MessageInputState =
     | { type: 'waitingApproval'; message: Message; revisedMsg: Message; revisionInstruction: string; };
 
 export function MessageInput({
-    messageList, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
+    messageList, inputHandlers, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
 }: {
     messageList: Message[];
+    inputHandlers: InputHandler[]
     addMesssage: (message: Message, callbackOpts?: messageAddedCallbackOptions) => void;
     chatKey: number,
     allowFollowUpDiscussion: boolean;
@@ -222,15 +322,15 @@ export function MessageInput({
         if (!isNormal) {
             return;
         }
-        const util = defaultUtils[triggeredIndex]
-        if (util.type === UtilsTypes.Generation && !compState.message.isEmpty()) {
+        const handler = inputHandlers[triggeredIndex]
+        if (handler.type === InputHandlerTypes.Generation && !compState.message.isEmpty()) {
             return // TODO raise error
         }
-        if (util.type === UtilsTypes.Revision && compState.message.isEmpty()) {
+        if (handler.type === InputHandlerTypes.Revision && compState.message.isEmpty()) {
             return
         }
         setCompState({ type: 'revising', revisingIndex: triggeredIndex, message: compState.message });
-        const userInstruction = util.userInstruction;
+        const userInstruction = handler.instruction();
         let result: string;
         try {
             if (compState.message.isEmpty()) {
@@ -274,8 +374,8 @@ export function MessageInput({
 
     return <div className={`flex flex-col relative border rounded-2xl pt-4 pb-2 px-4 ${className}`}
         onKeyDown={(e) => {
-            defaultUtils.forEach((icon, i) => {
-                if (icon.shortcutKeyCallback && icon.shortcutKeyCallback(e)) {
+            inputHandlers.forEach((handler, i) => {
+                if (handler.shortcutKeyCallback && handler.shortcutKeyCallback(e)) {
                     const ii = i;
                     e.preventDefault();
                     startRevising(ii);
@@ -287,26 +387,33 @@ export function MessageInput({
         <div className="flex flex-row px-4 mb-2">
             {/* top bar - revision entry icons */}
             <div className="flex flex-row">
-                {defaultUtils.map((icon, index) => {
+                {inputHandlers.map((h, index) => {
                     // loading effect while revising
                     if (compState.type === 'revising' && compState.revisingIndex === index) {
-                        return <IconCircleWrapper key={index}>
-                            <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
-                        </IconCircleWrapper>
+                        return <div key={index} id={`input-handler-${index}`}>
+                            <IconCircleWrapper>
+                                <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
+                            </IconCircleWrapper>
+                        </div>
                     }
                     // icons to display in normal status
-                    return <IconCircleWrapper key={index}>
-                        <button className="" key={index}
-                            onClick={() => {
-                                const ii = index;
-                                startRevising(ii);
-                            }}>{icon.iconNode}
-                        </button>
-                    </IconCircleWrapper>
-                    //     <div className="p-1 mr-1 w-[28px] bg-transparent hover:bg-gray-300 rounded" key={index}>
-                    // </div>;
+                    return <>
+                        <div key={index} id={`input-handler-${index}`}>
+                            <IconCircleWrapper>
+                                <button className="" key={index}
+                                    onClick={() => {
+                                        const ii = index;
+                                        startRevising(ii);
+                                    }}>{h.iconNode}
+                                </button>
+                            </IconCircleWrapper>
+                        </div>
+                        <Tooltip anchorSelect={`#input-handler-${index}`} clickable style={{ borderRadius: '0.75rem' }}>
+                            <span>{h.tooltip(navigator.language)}</span>
+                        </Tooltip>
+                    </>
                 })}
-            </div>
+            </div >
         </div>
         {/* revision DiffView pop-up */}
         {
@@ -688,4 +795,6 @@ export function DiffView(
         </div>
     );
 }
+
+
 

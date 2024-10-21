@@ -1,3 +1,4 @@
+import { GrammarCheckingHandler, InputHandler, RespGenerationHandler, TranslationHandler } from "../components/input";
 import { StreamingTextMessage, SystemMessage, TextMessage } from "../components/message";
 import { Message } from "./message";
 
@@ -48,6 +49,23 @@ export function LoadChatByIDFromLocalStorage(chatID: string): Message[] {
     });
 
     return messageList;
+}
+
+export function loadInputHandlers(chatID: string): InputHandler[] {
+    // 从 localStorage 根据 chatID 读取输入处理程序列表
+    const inputHandlersJSON = localStorage.getItem(`inputHandlers_${chatID}`);
+
+    // 如果 localStorage 中没有数据，返回空数组
+    if (!inputHandlersJSON) {
+        return [new TranslationHandler("English"), new RespGenerationHandler(), new GrammarCheckingHandler()];
+    }
+
+    const rawHandlers: string[] = JSON.parse(inputHandlersJSON);
+    const inputHandlers: InputHandler[] = rawHandlers.map((rawHandler) => {
+        return InputHandler.deserialize(rawHandler);
+    });
+
+    return inputHandlers;
 }
 
 export function persistMessageUpdateInChat(chatID: string, messageID: number, updateMessage: Message): void {
