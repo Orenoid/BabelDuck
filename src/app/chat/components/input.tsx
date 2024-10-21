@@ -372,7 +372,7 @@ export function MessageInput({
         return 170; // by default
     }
 
-    return <div className={`flex flex-col relative border rounded-2xl pt-4 pb-2 px-4 ${className}`}
+    return <div className={`flex flex-col relative border rounded-2xl py-2 px-2 ${className}`}
         onKeyDown={(e) => {
             inputHandlers.forEach((handler, i) => {
                 if (handler.shortcutKeyCallback && handler.shortcutKeyCallback(e)) {
@@ -384,14 +384,14 @@ export function MessageInput({
             });
         }}>
         {/* top bar */}
-        <div className="flex flex-row px-4 mb-2">
+        <div className="flex flex-row px-2 mb-1">
             {/* top bar - revision entry icons */}
             <div className="flex flex-row">
                 {inputHandlers.map((h, index) => {
                     // loading effect while revising
                     if (compState.type === 'revising' && compState.revisingIndex === index) {
                         return <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper>
+                            <IconCircleWrapper width={40} height={40}>
                                 <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
                             </IconCircleWrapper>
                         </div>
@@ -399,7 +399,7 @@ export function MessageInput({
                     // icons to display in normal status
                     return <>
                         <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper>
+                            <IconCircleWrapper width={40} height={40}>
                                 <button className="" key={index}
                                     onClick={() => {
                                         const ii = index;
@@ -629,7 +629,7 @@ function TextInput(
         <textarea
             className={`flex-1 p-4 resize-none focus:outline-none ${!isTyping && "cursor-default"}`}
             ref={textAreaRef}
-            placeholder={isTyping ? `Type your message here...\n\nPress Enter to send, Ctrl+Enter to add the message, Shift+Enter to add a new line` : `Press Space to start recording, release to stop`}
+            placeholder={isTyping ? `Type your message here...\nPress Enter to send, Ctrl+Enter to add the message, Shift+Enter to add a new line` : `Press Space to start recording, release to stop`}
             value={msg.content} onChange={(e) => setMsg(msg.updateContent(e.target.value))}
             readOnly={!isTyping}
             onKeyUp={(e) => {
@@ -655,7 +655,7 @@ function TextInput(
                     handleSend(msg);
                     return;
                 }
-            }} rows={4} />
+            }} rows={2} />
         {/* Bottom Bar */}
         <div className="flex flex-row items-center justify-between">
             {/* current message role */}

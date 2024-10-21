@@ -166,7 +166,7 @@ export function MessageList({ messageList, updateMessage, className }: {
             map((message, index) => {
                 const messageID = index
                 const MsgComponent = message.component()
-                return <MsgComponent message={message} key={index} className="mb-5"
+                return <MsgComponent message={message} key={index} className="mb-1"
                     messageID={messageID}
                     updateMessage={updateMessage} />
             })}

@@ -259,29 +259,30 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
             </div>
         }
         {/* options */}
-        <div className={`flex flex-row pt-3 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
+        <div className={`flex flex-row pt-2 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
             {/* audio control */}
-            <IconSquareWrapper>
+            <IconSquareWrapper width={24} height={24} className="mr-1">
                 <div className="cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
                     {isPlaying ? <IoStopCircleOutline color="#898989" size={20} /> : <PiSpeakerHighBold color="#898989" size={18} />}
                 </div>
             </IconSquareWrapper>
             {/* edit message */}
-            <IconSquareWrapper>
+            <IconSquareWrapper width={24} height={24} className="mr-1">
                 <TbPencil className="cursor-pointer" size={21} color="#898989" onClick={() => { toEditingState() }} />
             </IconSquareWrapper>
         </div>
     </div>
 }
 
-export function IconSquareWrapper({ children }: { children: React.ReactNode }): JSX.Element {
-    return <div className="flex items-center cursor-pointer justify-center w-[24px] h-[24px] rounded-md hover:bg-gray-50 mr-2">
+export function IconSquareWrapper({ children, width, height, className }: { children: React.ReactNode, width: number, height: number, className?: string }): JSX.Element {
+    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-md hover:bg-gray-50 ${className}`}>
         {children}
     </div>
 }
 
-export function IconCircleWrapper({ children }: { children: React.ReactNode }): JSX.Element {
-    return <div className="flex items-center cursor-pointer justify-center w-[40px] h-[40px] rounded-full hover:bg-gray-300">
+export function IconCircleWrapper({ children, width, height, className }:
+    { children: React.ReactNode, width?: number, height?: number, className?: string }): JSX.Element {
+    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-full hover:bg-gray-300 ${className}`}>
         {children}
     </div>
 }
@@ -737,11 +738,10 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
                             <MessageContent content={msgState.streamingContent} />
                         }
                     </div>
-
                     {/* control buttons */}
-                    <div className={`flex flex-row pt-3 pl-1 ${isPlaying ? 'visible' : 'invisible'}`}>
+                    <div className={`flex flex-row pt-2 pl-1 ${isPlaying ? 'visible' : 'invisible'}`}>
                         {isPlaying &&
-                            <IconSquareWrapper>
+                            <IconSquareWrapper width={24} height={24} className="mr-1">
                                 <IoStopCircleOutline onClick={stopPlaying} color="#898989" size={20} />
                             </IconSquareWrapper>
                         }
