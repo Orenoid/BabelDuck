@@ -1,7 +1,5 @@
 "use client";
 
-import { IMediaRecorder, MediaRecorder, register } from "extendable-media-recorder";
-import { connect } from "extendable-media-recorder-wav-encoder";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FaBackspace, FaMicrophone, FaSpellCheck } from "react-icons/fa";
 import { LuUserCog2 } from "react-icons/lu";
@@ -9,33 +7,44 @@ import { MdGTranslate } from "react-icons/md";
 import { TbPencilQuestion } from "react-icons/tb";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
-import { TextMessage } from "./message";
+import { IconCircleWrapper, TextMessage } from "./message";
 import { diffChars } from "diff";
 import { LiaComments } from "react-icons/lia";
 import { PiKeyReturnBold } from "react-icons/pi";
 import { Message } from "../lib/message";
-import { reviseMessageAction } from "../lib/chat-server";
+import { chatCompletion } from "../lib/chat-server";
 import Switch from "react-switch"
+import { IMediaRecorder } from "extendable-media-recorder";
 
-export interface RevisionEntry {
-    iconNode: React.ReactNode;
-    userInstruction: string;
-    // allow the icon to specify a callback to handle its custom shortcut key
-    shortcutCallback?: (e: React.KeyboardEvent) => boolean;
+enum UtilsTypes {
+    Generation = "generation",
+    Revision = "revision"
 }
 
-const defaultRevisions: RevisionEntry[] = [
+
+export interface UtilsEntry {
+    iconNode: React.ReactNode;
+    userInstruction: string;
+    type: UtilsTypes;
+    // allow the icon to specify a callback to handle its custom shortcut key
+    shortcutKeyCallback?: (e: React.KeyboardEvent) => boolean;
+}
+
+const defaultUtils: UtilsEntry[] = [
     {
         iconNode: <MdGTranslate size={20} />, userInstruction: "How do I say it in English to express the same meaning?",
-        shortcutCallback: (e: React.KeyboardEvent) => e.key === 'k' && (e.metaKey || e.ctrlKey)
+        type: UtilsTypes.Revision,
+        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === 'k' && (e.metaKey || e.ctrlKey)
     },
     {
         iconNode: <TbPencilQuestion size={20} title="Ask AI to answer this question" />, userInstruction: "Help me respond to this message",
-        shortcutCallback: (e: React.KeyboardEvent) => e.key === '/' && (e.metaKey || e.ctrlKey)
+        type: UtilsTypes.Generation,
+        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === '/' && (e.metaKey || e.ctrlKey)
     },
     {
         iconNode: <FaSpellCheck size={20} className="ml-[-2px]" />, userInstruction: "Correct grammar issue",
-        shortcutCallback: (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey)
+        type: UtilsTypes.Revision,
+        shortcutKeyCallback: (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey)
     }
 ];
 
@@ -51,34 +60,128 @@ export async function reviseMessage(
             filter((msg) => msg.includedInChatCompletion).
             map(msg => `[START]${msg.role}: ${msg.toJSON().content}[END]`).join('\n') : "";
 
-    const revisionPrompt = `${includeHistory ? `This is an ongoing conversation:
-    """
-    ${historyContext}
-    """` : ""}
-    This is a message the user is about to send in conversation:
-    """
-    ${messageToRevise}
-    """
-    If the message is empty, it potentially means the user needs a answer suggestion.
+    const systemPrompt = `You're a helpful assistant. Your duty is to assist users in a conversation, and sometimes users will provide you with the message they are about to send, asking you to help modify, correct, translate or rewrite the provided message.First, the user will send you the ongoing conversation history in the following format:
+"""
+[START]somebody: ...[END]
+[START]user: ...[END]
+[START]somebody: ...[END]
+"""
+Then, the user will provide the message text they are about to send:
+"""
+message content about to send
+"""
+Next, the user will give an instruction:
+"""
+instruction about the revision you should do on the message above
+"""
+Please follow the user's instruction, considering the historical context of the conversation, and revise or rewrite the message. Then, return the revised message in the following JSON format:
+"""
+{"revision": "..."}
+"""
+IMPORTANT: The revision you generate is intended for the user to respond the ongoing conversation, not to reply to the user's current instruction.
+`
 
-    This is the user's instruction or question:
-    """
-    ${userInstruction}
-    """
-    
-    Please generate a suggestion based on the user's instruction or question, considering the context of the conversation, and return it in the following JSON format, while preserving the user's line breaks and formatting if any:
-    """
-    {
-        "suggested_answer": "..."
-    }
-    """
-
-    IMPORTANT: The suggested_answer you generate is intended for the user to respond to another conversation, not to reply to the user's current instruction or question.
-    `;
-
-    const revisedText = await reviseMessageAction({ role: 'user', content: revisionPrompt });
-    return revisedText;
+    const fewShotMessages = [
+        `here is the ongoing conversation history:
+"""
+[START]assistant: Hello, how can I assist you?[END]
+[START]user: I want to book a room.[END]
+[START]assistant: Sure, what kind of room do you need?[END]
+"""
+here is the message I'm about to send:
+"""
+我需要一个双人房，住两晚。
+"""
+here is what you shoud do with the message:
+"""
+translate it into English
+"""`,
+        `{"revision": "I need a double room for two nights."}`
+    ]
+    const userMessage = `here is the ongoing conversation history:
+"""
+${historyContext}
+"""
+here is the message I'm about to send:
+"""
+${messageToRevise}
+"""
+here is what you shoud do with the message:
+"""
+${userInstruction}
+"""`
+    const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: fewShotMessages[0] },
+        { role: 'assistant', content: fewShotMessages[1] },
+        { role: 'user', content: userMessage }
+    ]
+    const rawJson = await chatCompletion(messages);
+    const revision = JSON.parse(rawJson).revision;
+    return revision;
 }
+
+export async function generateMessage(
+    userInstruction: string,
+    historyMessages: Message[],
+    includeHistory: boolean = true,
+    historyMessageCount: number | undefined = undefined
+) {
+
+    const historyContext = includeHistory ?
+        historyMessages.slice(-(historyMessageCount ?? historyMessages.length)).
+            filter((msg) => msg.includedInChatCompletion).
+            map(msg => `[START]${msg.role}: ${msg.toJSON().content}[END]`).join('\n') : "";
+
+    const systemPrompt = `You're a helpful assistant. Your duty is to assist users in a conversation, and sometimes users don't know how to respond, you need to help the user provide a response for reference. First, the user will send you the ongoing conversation history in the following format:
+"""
+[START]somebody: ...[END]
+[START]user: ...[END]
+[START]somebody: ...[END]
+"""
+Next, the user will give an instruction:
+"""
+instruction on how you should generate relevant repl
+"""
+Please follow the user's instruction, considering the historical context of the conversation, and provide a recommended response for the user's reference. Then, return the recommended response in the following JSON format:
+"""
+{"recommended": "..."}
+"""
+IMPORTANT: The response you generate is intended for the user to respond the ongoing conversation, not to reply to the user's current instruction.
+`
+
+    const fewShotMessages = [
+        `here is the ongoing conversation history:
+"""
+[START]assistant: Hello, welcome to our interview. Can you please introduce yourself?[END]
+[START]user: Sure, my name is John Doe and I have a background in software development.[END]
+[START]assistant: Great, John. Can you briefly tell me what data types are in Python?[END]
+"""
+here is my instruction:
+"""
+help me answer it
+"""`,
+        `{"recommended": "In Python, data types include integers, floats, strings, lists, tuples, sets, and dictionaries."}`
+    ]
+    const userMessage = `here is the ongoing conversation history:
+"""
+${historyContext}
+"""
+here is my instruction:
+"""
+${userInstruction}
+"""`
+    const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: fewShotMessages[0] },
+        { role: 'assistant', content: fewShotMessages[1] },
+        { role: 'user', content: userMessage }
+    ]
+    const rawJson = await chatCompletion(messages);
+    const recommended = JSON.parse(rawJson).recommended;
+    return recommended;
+}
+
 
 // Temporarily use this to convert message to text for revision
 function messageToText(message: Message): string {
@@ -92,10 +195,11 @@ export type MessageInputState =
     | { type: 'waitingApproval'; message: Message; revisedMsg: Message; revisionInstruction: string; };
 
 export function MessageInput({
-    messageList, addMesssage, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
+    messageList, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
 }: {
     messageList: Message[];
     addMesssage: (message: Message, callbackOpts?: messageAddedCallbackOptions) => void;
+    chatKey: number,
     allowFollowUpDiscussion: boolean;
     startFollowUpDiscussion: (userInstruction: string, messageToRevise: string, revisedText: string) => void;
     className?: string;
@@ -105,6 +209,7 @@ export function MessageInput({
 
     const isNormal = compState.type === 'normal';
     const waitingForApproval = compState.type === 'waitingApproval';
+    const [rejectionSignal, setRejectionSignal] = useState(0)
 
     // state convertors
     const updateMessage = useCallback((message: Message) => {
@@ -117,12 +222,29 @@ export function MessageInput({
         if (!isNormal) {
             return;
         }
+        const util = defaultUtils[triggeredIndex]
+        if (util.type === UtilsTypes.Generation && !compState.message.isEmpty()) {
+            return // TODO raise error
+        }
+        if (util.type === UtilsTypes.Revision && compState.message.isEmpty()) {
+            return
+        }
         setCompState({ type: 'revising', revisingIndex: triggeredIndex, message: compState.message });
-        const userInstruction = defaultRevisions[triggeredIndex].userInstruction;
-        const revisedText = await reviseMessage(messageToText(compState.message), userInstruction, messageList);
+        const userInstruction = util.userInstruction;
+        let result: string;
+        try {
+            if (compState.message.isEmpty()) {
+                result = await generateMessage(userInstruction, messageList);
+            } else {
+                result = await reviseMessage(messageToText(compState.message), userInstruction, messageList);
+            }
+        } catch (error) {
+            setCompState({ type: 'normal', message: compState.message, fromRevision: false });
+            throw error; // TODO unified error handling
+        }
         setCompState({
             type: 'waitingApproval',
-            revisedMsg: new TextMessage(compState.message.role, revisedText),
+            revisedMsg: new TextMessage(compState.message.role, result),
             revisionInstruction: userInstruction,
             message: compState.message
         });
@@ -132,16 +254,13 @@ export function MessageInput({
             return;
         }
         setCompState({ type: 'normal', message: new TextMessage(compState.message.role, revisedText), fromRevision: true });
-        // TODO
-        // textAreaRef.current?.focus();
     }
     function rejectRevision() {
         if (!waitingForApproval) {
             return;
         }
         setCompState({ type: 'normal', message: compState.message, fromRevision: false });
-        // TODO
-        // textAreaRef.current?.focus();
+        setRejectionSignal(prev => prev + 1)
     }
 
     function calculateTextAreaHeight(): number {
@@ -155,8 +274,8 @@ export function MessageInput({
 
     return <div className={`flex flex-col relative border-t pt-4 pb-2 px-4 ${className}`}
         onKeyDown={(e) => {
-            defaultRevisions.forEach((icon, i) => {
-                if (icon.shortcutCallback && icon.shortcutCallback(e)) {
+            defaultUtils.forEach((icon, i) => {
+                if (icon.shortcutKeyCallback && icon.shortcutKeyCallback(e)) {
                     const ii = i;
                     e.preventDefault();
                     startRevising(ii);
@@ -168,20 +287,24 @@ export function MessageInput({
         <div className="flex flex-row px-4 mb-2">
             {/* top bar - revision entry icons */}
             <div className="flex flex-row">
-                {defaultRevisions.map((icon, index) => {
+                {defaultUtils.map((icon, index) => {
                     // loading effect while revising
                     if (compState.type === 'revising' && compState.revisingIndex === index) {
-                        return <div className="p-1 mr-1 w-[28px]" key={index}>
+                        return <IconCircleWrapper key={index}>
                             <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
-                        </div>;
+                        </IconCircleWrapper>
                     }
                     // icons to display in normal status
-                    return <div className="p-1 mr-1 w-[28px] bg-transparent hover:bg-gray-300 rounded" key={index}><button className="" key={index}
-                        onClick={() => {
-                            const ii = index;
-                            startRevising(ii);
-                        }}>{icon.iconNode}
-                    </button></div>;
+                    return <IconCircleWrapper key={index}>
+                        <button className="" key={index}
+                            onClick={() => {
+                                const ii = index;
+                                startRevising(ii);
+                            }}>{icon.iconNode}
+                        </button>
+                    </IconCircleWrapper>
+                    //     <div className="p-1 mr-1 w-[28px] bg-transparent hover:bg-gray-300 rounded" key={index}>
+                    // </div>;
                 })}
             </div>
         </div>
@@ -199,17 +322,22 @@ export function MessageInput({
                     startFollowUpDiscussion(compState.revisionInstruction, messageToRevise, revisedText);
                 }} />}
         {/* message input area (perhaps calling it 'message constructor' would be more appropriate) */}
-        <TextInput allowEdit={isNormal} addMessage={addMesssage} updateMessage={updateMessage}
-            revisionMessage={isNormal ? [compState.message, compState.fromRevision] : undefined} />
+        <TextInput chatKey={chatKey} allowEdit={isNormal}
+            addMessage={addMesssage} updateMessage={updateMessage}
+            revisionMessage={isNormal ? [compState.message, compState.fromRevision] : undefined} rejectionSignal={rejectionSignal} />
     </div>;
 }
 
+let enableVoiceModeShortcutTimer: NodeJS.Timeout
+
 function TextInput(
-    { allowEdit, addMessage, updateMessage, revisionMessage }: {
+    { allowEdit, chatKey, addMessage, updateMessage, revisionMessage }: {
         allowEdit: boolean
+        chatKey: number
         updateMessage: (message: Message) => void
         addMessage: (message: Message, opts: messageAddedCallbackOptions) => void
         revisionMessage: [Message, boolean] | undefined // Updated when a revision is provided, initialized as undefined
+        rejectionSignal: number, // Signal to indicate rejection of a revision
     }
 ) {
     type typingOrVoiceMode = { type: 'typing' } | { type: 'voiceMode', autoSend: boolean };
@@ -237,6 +365,13 @@ function TextInput(
             setInputState({ type: 'noEdit', recoverState: recoverState })
         } else if (inputState.type === 'noEdit' && allowEdit) {
             setInputState(inputState.recoverState)
+            setTimeout(() => {
+                if (inputState.recoverState.type === 'voiceMode') {
+                    inputDivRef.current?.focus()
+                } else {
+                    textAreaRef.current?.focus()
+                }
+            }, 100);
         }
     }, [allowEdit, inputState])
 
@@ -262,6 +397,17 @@ function TextInput(
         }
     }, [msg.content, revisionMessage])
 
+    useEffect(() => {
+        setMsg(new TextMessage(role, ''))
+        setTimeout(() => {
+            if (inputState.type === 'voiceMode') {
+                inputDivRef.current?.focus()
+            } else {
+                textAreaRef.current?.focus()
+            }
+        }, 100);
+    }, [chatKey]) // TODO fix the warning
+
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const inputDivRef = useRef<HTMLDivElement>(null);
 
@@ -279,6 +425,8 @@ function TextInput(
         if (inputState.type !== 'typing' && inputState.type !== 'voiceMode') {
             return
         }
+        const { MediaRecorder, register } = await import("extendable-media-recorder");
+        const { connect } = await import("extendable-media-recorder-wav-encoder");
         if (!MediaRecorder.isTypeSupported('audio/wav')) {
             await register(await connect());
         }
@@ -349,18 +497,24 @@ function TextInput(
         setInputState({ type: 'typing' })
         textAreaRef.current?.focus();
     }
+    const clearMessageInVoiceMode = () => {
+        if (inputState.type !== 'voiceMode') return;
+        setMsg(msg.updateContent(''))
+    }
     const toggleAutoSend = () => {
         if (inputState.type !== 'voiceMode') return;
         setInputState({ type: 'voiceMode', autoSend: !inputState.autoSend })
     }
 
-    return <div ref={inputDivRef} className="flex flex-col focus:outline-none"
+    return <div ref={inputDivRef} tabIndex={0} className="flex flex-col focus:outline-none"
         onKeyDown={(e) => e.key === ' ' && isVoiceMode && startRecording()}
         // TODO bug: if the space key is released too soon right after pressing it, the recording will not stop
         onKeyUp={
             (e) => {
                 if (e.key === ' ' && isRecording && inputState.previousState.type === 'voiceMode') { stopRecording() }
                 if (e.key === 'i' && isVoiceMode) { disableVoiceMode() }
+                if (e.key === 'Enter' && isVoiceMode) { handleSend(msg) }
+                if (e.key === 'Backspace' && isVoiceMode) { clearMessageInVoiceMode() }
             }
         }
     >
@@ -371,7 +525,19 @@ function TextInput(
             placeholder={isTyping ? `Type your message here...\n\nPress Enter to send, Ctrl+Enter to add the message, Shift+Enter to add a new line` : `Press Space to start recording, release to stop`}
             value={msg.content} onChange={(e) => setMsg(msg.updateContent(e.target.value))}
             readOnly={!isTyping}
+            onKeyUp={(e) => {
+                if (e.key === 'v') {
+                    clearTimeout(enableVoiceModeShortcutTimer)
+                    setMsg(msg.updateContent(msg.content + 'v'))
+                }
+            }}
             onKeyDown={(e) => {
+                if (e.key === 'v' && !(e.metaKey || e.ctrlKey)) {
+                    e.preventDefault()
+                    enableVoiceModeShortcutTimer = setTimeout(() => {
+                        enableVoiceMode()
+                    }, 1000)
+                }
                 if (e.key === 'Enter' && e.ctrlKey) {
                     e.preventDefault();
                     handleSend(msg, { generateAssistantMsg: false });
@@ -399,18 +565,11 @@ function TextInput(
             </div>
             {/* voice control buttons */}
             <div className="flex flex-row items-center">
-                <label className="flex items-center mr-2">
-                    <span className="mr-1">Voice Mode</span>
-                    <Switch checked={
-                        isVoiceMode
-                        // while recording and transcribing, keep what was set before
-                        || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
-                        || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
-                    }
-                        onChange={(checked) => { return checked ? enableVoiceMode() : disableVoiceMode() }}
-                        className="mr-2" width={34} height={17} uncheckedIcon={false} checkedIcon={false} />
-                </label>
-                {(isVoiceMode || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode') || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode'))
+                {(isVoiceMode
+                    || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
+                    || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                    || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
+                )
                     && <label className={`flex items-center mr-2`}>
                         <span className="mr-1">Auto Send</span>
                         <Switch
@@ -418,13 +577,28 @@ function TextInput(
                             checked={isVoiceMode && inputState.autoSend
                                 // while recording and transcribing, keep what was set before
                                 || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
-                                || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)}
+                                || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
+                                || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode' && inputState.recoverState.autoSend)
+                            }
                             onChange={toggleAutoSend}
                             className={`mr-2`} width={34} height={17} uncheckedIcon={false} checkedIcon={false}
                         />
-                    </label>}
+                    </label>
+                }
+                <label className="flex items-center mr-2">
+                    <span className="mr-1">Voice Mode</span>
+                    <Switch checked={
+                        isVoiceMode
+                        // while recording and transcribing, keep what was set before
+                        || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
+                        || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                        || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
+                    }
+                        onChange={(checked) => { return checked ? enableVoiceMode() : disableVoiceMode() }}
+                        className="mr-2" width={34} height={17} uncheckedIcon={false} checkedIcon={false} />
+                </label>
                 <button
-                    className="rounded-full bg-blue-500 text-white hover:bg-blue-700 focus:outline-none"
+                    className="rounded-full bg-black hover:bg-gray-700 focus:outline-none"
                     onClick={isRecording ? stopRecording : startRecording}
                 >
                     {isRecording ?
@@ -477,6 +651,8 @@ export function DiffView(
                     approveRevisionCallback(revisedText);
                 } else if (e.key === 'Backspace') {
                     rejectRevisionCallback();
+                } else if (e.key === 'Tab') {
+                    startFollowUpDiscussion(originalText, revisedText);
                 }
             }}>
             {changes.length > 0 && (
