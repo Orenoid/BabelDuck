@@ -408,7 +408,7 @@ export function MessageInput({
                                 </button>
                             </IconCircleWrapper>
                         </div>
-                        <Tooltip anchorSelect={`#input-handler-${index}`} clickable style={{ borderRadius: '0.75rem' }}>
+                        <Tooltip anchorSelect={`#input-handler-${index}`} clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                             <span>{h.tooltip(navigator.language)}</span>
                         </Tooltip>
                     </>
