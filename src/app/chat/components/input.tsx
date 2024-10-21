@@ -391,7 +391,7 @@ export function MessageInput({
                     // loading effect while revising
                     if (compState.type === 'revising' && compState.revisingIndex === index) {
                         return <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper width={40} height={40}>
+                            <IconCircleWrapper width={35} height={35}>
                                 <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
                             </IconCircleWrapper>
                         </div>
@@ -399,7 +399,7 @@ export function MessageInput({
                     // icons to display in normal status
                     return <>
                         <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper width={40} height={40}>
+                            <IconCircleWrapper width={35} height={35}>
                                 <button className="" key={index}
                                     onClick={() => {
                                         const ii = index;

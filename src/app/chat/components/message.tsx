@@ -274,15 +274,16 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
     </div>
 }
 
-export function IconSquareWrapper({ children, width, height, className }: { children: React.ReactNode, width: number, height: number, className?: string }): JSX.Element {
-    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-md hover:bg-gray-50 ${className}`}>
+export function IconSquareWrapper({ children, width = 24, height = 24, className = "" }:
+    { children: React.ReactNode, width?: number, height?: number, className?: string }): JSX.Element {
+    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-md hover:bg-gray-50 ${className}`} style={{ width: `${width}px`, height: `${height}px` }}>
         {children}
     </div>
 }
 
-export function IconCircleWrapper({ children, width, height, className }:
+export function IconCircleWrapper({ children, width = 24, height = 24, className = "" }:
     { children: React.ReactNode, width?: number, height?: number, className?: string }): JSX.Element {
-    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-full hover:bg-gray-300 ${className}`}>
+    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-full hover:bg-gray-300 ${className}`} style={{width: `${width}px`, height: `${height}px`}}>
         {children}
     </div>
 }
@@ -519,6 +520,7 @@ export class StreamingTextMessage extends Message {
 const StreamingTextMessageComponent = ({ message: _message, messageID, updateMessage: persistMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) => {
 
     const message = _message as StreamingTextMessage
+    const containerRef = useRef<HTMLDivElement>(null); // Ref for the container
     type MessageState =
         | { type: 'init' }
         | { type: 'streaming', streamingContent: string, playing: boolean }
@@ -539,6 +541,11 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
         setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false })
         stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: false }
     }
+
+    // scroll to the bottom of the container when the message state changes
+    useEffect(() => {
+        containerRef.current?.scrollIntoView({ behavior: 'instant' })
+    }, [msgState]);
 
     // TODO: Issues exist with strict mode
     useEffect(() => {
@@ -746,6 +753,7 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
                             </IconSquareWrapper>
                         }
                     </div>
+                    <div ref={containerRef} /> {/* scroll to the bottom of the container when the message state changes */}
                 </div>
             }
             {/* if finished, render as normal text message */}

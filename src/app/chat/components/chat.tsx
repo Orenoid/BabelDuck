@@ -157,9 +157,16 @@ export function MessageList({ messageList, updateMessage, className }: {
     className?: string
 }) {
     const messagesEndRef = useRef<HTMLDivElement>(null)
+
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }, [messageList])
+        // Briefly delay the scrolling operation after the component is first loaded
+        const timer = setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+        }, 10);
+        // Clear the timer to prevent memory leaks
+        return () => clearTimeout(timer);
+    }, []); // Empty dependency array
+
     return <div className={`flex flex-col pb-5 ${className}`}>
         {messageList.
             filter((msg) => msg.displayToUser).
