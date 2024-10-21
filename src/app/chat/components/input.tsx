@@ -272,7 +272,7 @@ export function MessageInput({
         return 170; // by default
     }
 
-    return <div className={`flex flex-col relative border-t pt-4 pb-2 px-4 ${className}`}
+    return <div className={`flex flex-col relative border rounded-2xl pt-4 pb-2 px-4 ${className}`}
         onKeyDown={(e) => {
             defaultUtils.forEach((icon, i) => {
                 if (icon.shortcutKeyCallback && icon.shortcutKeyCallback(e)) {

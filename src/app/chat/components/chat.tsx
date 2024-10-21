@@ -120,7 +120,7 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
         setChatKey(prev => prev + 1)
     }
 
-    return <div className={`flex flex-col flex-grow items-center rounded-lg ${className}`}>
+    return <div className={`flex flex-col flex-grow items-center rounded-lg pb-4 ${className}`}>
         {/* Chat title */}
         {/* <div className={`self-start ml-[100px] font-bold text-xl pt-2 w-4/5 text-[#5f5f5f]`}>New Chat</div> */}
 
