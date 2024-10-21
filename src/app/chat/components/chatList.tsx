@@ -57,7 +57,7 @@ export function NewChat({ addNewChat: addNewChat2, className = "" }: {
         dispatch(addNewChat(chatSelection.chatSelection))
     }
 
-    return <div className={`flex flex-row py-2 pl-3 my-1 items-center cursor-pointer rounded-md hover:bg-gray-200 ${className}`}
+    return <div className={`flex flex-row py-2 pl-3 items-center cursor-pointer rounded-md hover:bg-gray-200 ${className}`}
         onClick={handleClick}>
         <FaPlus className="mr-3" />
         <button>New Chat</button>
