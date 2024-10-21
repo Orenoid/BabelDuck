@@ -659,15 +659,20 @@ function TextInput(
         {/* Bottom Bar */}
         <div className="flex flex-row items-center justify-between">
             {/* current message role */}
-            <div className="flex flex-row p-1 px-3 mr-3 rounded-full hover:bg-gray-300 cursor-pointer" onClick={() => setShowRoleMenu(!showRoleMenu)}>
-                <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{role}</span>
+            <div className="relative flex flex-row rounded-full hover:bg-gray-300">
+                <div className="flex flex-row p-1 px-3 cursor-pointer" onClick={() => setShowRoleMenu(!showRoleMenu)}>
+                    <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{role}</span>
+                </div>
                 {showRoleMenu && (
-                    <div className="absolute mt-2 p-2 bg-white border border-gray-300 rounded shadow-lg">
-                        {/* Add role options here */}
-                        <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => setRole('system')}>system</div>
-                        <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => setRole('assistant')}>assistant</div>
-                        <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => setRole('user')}>user</div>
-                    </div>
+                    <>
+                        <div className="fixed inset-0 z-10 bg-black opacity-0" onClick={() => setShowRoleMenu(false)}></div>
+                        <div className="absolute bottom-full left-0 mb-1 p-2 bg-white border border-gray-300 rounded-lg z-20">
+                            {/* Add role options here */}
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('system'); setShowRoleMenu(false); }}>system</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('assistant'); setShowRoleMenu(false); }}>assistant</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('user'); setShowRoleMenu(false); }}>user</div>
+                        </div>
+                    </>
                 )}
             </div>
             {/* voice control buttons */}
@@ -795,6 +800,7 @@ export function DiffView(
         </div>
     );
 }
+
 
 
 
