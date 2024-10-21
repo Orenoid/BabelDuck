@@ -259,16 +259,16 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
             </div>
         }
         {/* options */}
-        <div className={`flex flex-row pt-2 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
-            {/* audio control */}
-            <IconSquareWrapper width={24} height={24} className="mr-1">
-                <div className="cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
-                    {isPlaying ? <IoStopCircleOutline color="#898989" size={20} /> : <PiSpeakerHighBold color="#898989" size={18} />}
-                </div>
-            </IconSquareWrapper>
+        <div className={`flex flex-row pt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
             {/* edit message */}
             <IconSquareWrapper width={24} height={24} className="mr-1">
-                <TbPencil className="cursor-pointer" size={21} color="#898989" onClick={() => { toEditingState() }} />
+                <TbPencil size={20} className="cursor-pointer" onClick={() => { toEditingState() }} />
+            </IconSquareWrapper>
+            {/* audio playing control */}
+            <IconSquareWrapper width={24} height={24} className="mr-1">
+                <div className="cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
+                    {isPlaying ? <IoStopCircleOutline size={20} /> : <PiSpeakerHighBold size={18} />}
+                </div>
             </IconSquareWrapper>
         </div>
     </div>
@@ -436,9 +436,9 @@ export class TextMessage extends Message {
             }
             <div className={`flex flex-row mt-1 pl-1 ${showMore ? 'visible' : 'invisible'}`}>
                 <div className="mr-2 cursor-pointer" onClick={!isPlaying ? startPlaying : stopPlaying}>
-                    {isPlaying ? <FaStopCircle color="#898989" size={25} /> : <HiMiniSpeakerWave color="#898989" size={25} />}
+                    {isPlaying ? <FaStopCircle size={25} /> : <HiMiniSpeakerWave size={23} />}
                 </div>
-                <TbPencil className="cursor-pointer" size={25} color="#898989"
+                <TbPencil size={20} className="cursor-pointer"
                     onClick={() => {
                         toEditingState()
                     }} />
