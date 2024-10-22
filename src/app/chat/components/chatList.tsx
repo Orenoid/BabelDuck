@@ -37,7 +37,7 @@ export function ChatSelectionList({ chatSelectionListLoader, className = "" }: C
         }
     }, [chatSelectionListLoader, dispatch])
 
-    return <div className={`${className}`}>
+    return <div className={`${className} custom-scrollbar`}>
         {chatSelectionList.selectionList.map((item) => {
             return <ChatSelection selected={item.id === chatSelectionList.currentChatID}
                 id={item.id} key={item.id} title={item.title} />

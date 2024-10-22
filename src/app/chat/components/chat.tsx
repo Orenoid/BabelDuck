@@ -167,7 +167,7 @@ export function MessageList({ messageList, updateMessage, className }: {
         return () => clearTimeout(timer);
     }, []); // Empty dependency array
 
-    return <div className={`flex flex-col pb-5 ${className}`}>
+    return <div className={`flex flex-col ${className} custom-scrollbar`}>
         {messageList.
             filter((msg) => msg.displayToUser).
             map((message, index) => {

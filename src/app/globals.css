@@ -25,3 +25,21 @@ body {
     text-wrap: balance;
   }
 }
+
+.custom-scrollbar {
+  scrollbar-width: thin; /* 适用于 Firefox */
+  scrollbar-color: rgba(0, 0, 0, 0.5) transparent; /* 适用于 Firefox */
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 3px; /* 设置滚动条宽度 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; /* 隐藏滚动条背景 */
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.5); /* 滚动条颜色 */
+  border-radius: 10px; /* 滚动条圆角 */
+}
