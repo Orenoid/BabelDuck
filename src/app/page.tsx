@@ -4,7 +4,7 @@ import { Chat } from "./chat/components/chat";
 import { ChatSelectionList, NewChat } from "./chat/components/chatList";
 import { AddNewChat, LoadChatByIDFromLocalStorage, LoadChatSelectionListFromLocalStorage } from "./chat/lib/chat";
 import { useAppSelector } from "./hooks";
-import { SettingEntry } from "./settings/components/settings";
+import { SettingsEntry } from "./settings/components/settings";
 
 // New AboutLink component
 function AboutLink() {
@@ -30,7 +30,7 @@ export default function Home() {
         <div className="border-t border-gray-300 my-5 mx-3"></div>
         <div className="flex flex-col">
           <NewChat className="mb-1" addNewChat={AddNewChat} />
-          <SettingEntry />
+          <SettingsEntry />
           <AboutLink />
         </div>
       </div>
