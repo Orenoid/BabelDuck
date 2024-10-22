@@ -281,11 +281,29 @@ export function IconSquareWrapper({ children, width = 24, height = 24, className
     </div>
 }
 
-export function IconCircleWrapper({ children, width = 24, height = 24, className = "" }:
-    { children: React.ReactNode, width?: number, height?: number, className?: string }): JSX.Element {
-    return <div className={`flex items-center cursor-pointer justify-center w-[${width}px] h-[${height}px] rounded-full hover:bg-gray-300 ${className}`} style={{width: `${width}px`, height: `${height}px`}}>
-        {children}
-    </div>
+interface IconCircleWrapperProps {
+    children: React.ReactNode;
+    width?: number;
+    height?: number;
+    className?: string;
+    onClick?: () => void;
+}
+export function IconCircleWrapper({
+    children,
+    width = 30,
+    height = 30,
+    className = "",
+    onClick
+}: IconCircleWrapperProps) {
+    return (
+        <div
+            className={`flex items-center justify-center rounded-full cursor-pointer hover:bg-gray-300 ${className}`}
+            style={{ width: `${width}px`, height: `${height}px` }}
+            onClick={onClick} // 将 onClick 事件绑定到容器上
+        >
+            {children}
+        </div>
+    );
 }
 
 export function TextMessageComponent({ message, messageID, updateMessage, className }: { message: Message, messageID: number, updateMessage: (messageID: number, message: Message) => void, className?: string }) {

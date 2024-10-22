@@ -136,6 +136,7 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
 
         <MessageList className="flex-initial overflow-auto w-4/5 h-full" messageList={currentMessageList} updateMessage={updateMessage} />
         <MessageInput className="w-4/5"
+            chatID={chatID}
             key={inputCompKey} chatKey={chatKey}
             inputHandlers={inputHandlers}
             addMesssage={addMesssage} messageList={currentMessageList}

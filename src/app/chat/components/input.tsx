@@ -16,11 +16,29 @@ import Switch from "react-switch"
 import { IMediaRecorder } from "extendable-media-recorder";
 import { Tooltip } from "react-tooltip";
 import { TbPencilQuestion } from "react-icons/tb";
+import { FiPlus } from "react-icons/fi";
+import { addInputHandlerToLocalStorage } from "../lib/chat";
 
 enum InputHandlerTypes {
     Generation = "generation",
     Revision = "revision"
 }
+
+// 定义全局的 InputHandlerHub
+class InputHandlerHub {
+    private handlerMap: Map<string, (serialized: string) => InputHandler> = new Map();
+
+    registerHandler(implType: string, deserialize: (serialized: string) => InputHandler) {
+        this.handlerMap.set(implType, deserialize);
+    }
+
+    getHandlerClassByImplType(implType: string): ((serialized: string) => InputHandler) | undefined {
+        return this.handlerMap.get(implType);
+    }
+}
+
+// 创建一个全局的 InputHandlerHub 实例
+export const inputHandlerHub = new InputHandlerHub();
 
 export abstract class InputHandler {
     readonly implType: string
@@ -40,11 +58,14 @@ export abstract class InputHandler {
 
     abstract serialize(): string;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     static deserialize(serialized: string): InputHandler {
-        // Return an instance of a concrete subclass of InputHandler
-        // This is a placeholder and should be implemented by subclasses
-        throw new Error("Deserialization not implemented for InputHandler");
+        const { implType } = JSON.parse(serialized);
+        const deserialize = inputHandlerHub.getHandlerClassByImplType(implType);
+        if (deserialize) {
+            return deserialize(serialized);
+        } else {
+            throw new Error(`未实现 implType 为 ${implType} 的反序列化方法`);
+        }
     }
 }
 
@@ -116,6 +137,85 @@ export class RespGenerationHandler extends InputHandler {
     }
 }
 
+export class CommonGenerationHandler extends InputHandler {
+    _instruction: string
+    _tooltip: string
+    _toolTipKey?: string
+    _iconChar: string
+
+    constructor(instruction: string, tooltip: string, iconChar: string, toolTipKey?: string) {
+        super('commonGeneration', InputHandlerTypes.Generation);
+        this._instruction = instruction;
+        this._tooltip = tooltip;
+        this._toolTipKey = toolTipKey;
+        this._iconChar = iconChar;
+        this.iconNode = <span>{iconChar}</span>;
+    }
+
+    tooltip(): string {
+        return this._tooltip;
+    }
+
+    instruction(): string {
+        return this._instruction;
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type,
+            instruction: this._instruction,
+            tooltip: this._tooltip,
+            toolTipKey: this._toolTipKey,
+            iconChar: this._iconChar
+        });
+    }
+
+    static deserialize(serialized: string): CommonGenerationHandler {
+        const { instruction, tooltip, iconChar, toolTipKey } = JSON.parse(serialized);
+        return new CommonGenerationHandler(instruction, tooltip, iconChar, toolTipKey);
+    }
+}
+
+export class CommonRevisionHandler extends InputHandler {
+    _instruction: string
+    _tooltip: string
+    _iconChar: string
+    _toolTipKey?: string
+
+    constructor(instruction: string, tooltip: string, iconChar: string, toolTipKey?: string) {
+        super('commonRevision', InputHandlerTypes.Revision);
+        this._instruction = instruction;
+        this._tooltip = tooltip;
+        this._iconChar = iconChar;
+        this._toolTipKey = toolTipKey;
+    }
+
+    tooltip(): string {
+        return this._tooltip;
+    }
+
+    instruction(): string {
+        return this._instruction;
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type,
+            instruction: this._instruction,
+            tooltip: this._tooltip,
+            toolTipKey: this._toolTipKey,
+            iconChar: this._iconChar
+        });
+    }
+
+    static deserialize(serialized: string): CommonRevisionHandler {
+        const { instruction, tooltip, iconChar, toolTipKey } = JSON.parse(serialized);
+        return new CommonRevisionHandler(instruction, tooltip, iconChar, toolTipKey);
+    }
+}
+
 export class GrammarCheckingHandler extends InputHandler {
     constructor() {
         super('grammarChecking', InputHandlerTypes.Revision);
@@ -124,6 +224,7 @@ export class GrammarCheckingHandler extends InputHandler {
     }
 
     tooltip(lang: string): string {
+        // TODO introduce real i18n solution
         if (lang.startsWith("zh")) {
             return "检查并修正可能存在的语法问题";
         } else {
@@ -146,6 +247,13 @@ export class GrammarCheckingHandler extends InputHandler {
         return new GrammarCheckingHandler();
     }
 }
+
+// 在这里注册所有的 InputHandler 子类
+inputHandlerHub.registerHandler('translation', TranslationHandler.deserialize);
+inputHandlerHub.registerHandler('respGeneration', RespGenerationHandler.deserialize);
+inputHandlerHub.registerHandler('grammarChecking', GrammarCheckingHandler.deserialize);
+inputHandlerHub.registerHandler('commonGeneration', CommonGenerationHandler.deserialize);
+inputHandlerHub.registerHandler('commonRevision', CommonRevisionHandler.deserialize);
 
 export async function reviseMessage(
     messageToRevise: string,
@@ -290,12 +398,14 @@ function messageToText(message: Message): string {
 export type MessageInputState =
     | { type: 'init' }
     | { type: 'normal'; message: Message; fromRevision: boolean }
+    | { type: 'addingCustomInputHandler', previousState: MessageInputState }
     | { type: 'revising'; message: Message; revisingIndex: number; }
     | { type: 'waitingApproval'; message: Message; revisedMsg: Message; revisionInstruction: string; };
 
 export function MessageInput({
-    messageList, inputHandlers, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
+    chatID, messageList, inputHandlers, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
 }: {
+    chatID: string
     messageList: Message[];
     inputHandlers: InputHandler[]
     addMesssage: (message: Message, callbackOpts?: messageAddedCallbackOptions) => void;
@@ -362,7 +472,26 @@ export function MessageInput({
         setCompState({ type: 'normal', message: compState.message, fromRevision: false });
         setRejectionSignal(prev => prev + 1)
     }
-
+    function startAddingCustomInputHandler() {
+        if (!isNormal) {
+            return;
+        }
+        setCompState({ type: 'addingCustomInputHandler', previousState: compState });
+    }
+    function cancelAddingCustomInputHandler() {
+        if (compState.type !== 'addingCustomInputHandler') {
+            return;
+        }
+        setCompState(compState.previousState);
+    }
+    function inputHandlerAdded(handler: InputHandler) {
+        if (compState.type !== 'addingCustomInputHandler') {
+            return;
+        }
+        addInputHandlerToLocalStorage(chatID, [handler]);
+        setCompState(compState.previousState);
+        inputHandlers.push(handler);
+    }
     function calculateTextAreaHeight(): number {
         // TODO
         // if (textAreaRef.current) {
@@ -397,22 +526,34 @@ export function MessageInput({
                         </div>
                     }
                     // icons to display in normal status
-                    return <>
-                        <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper width={35} height={35}>
-                                <button className="" key={index}
-                                    onClick={() => {
-                                        const ii = index;
-                                        startRevising(ii);
-                                    }}>{h.iconNode}
-                                </button>
+                    return <div key={index}>
+                        <div id={`input-handler-${index}`}>
+                            <IconCircleWrapper
+                                width={35}
+                                height={35}
+                                onClick={() => {
+                                    console.log(`startRevising ${index}`); // TODO remove
+                                    const ii = index;
+                                    startRevising(ii);
+                                }}
+                            >
+                                {h.iconNode}
                             </IconCircleWrapper>
                         </div>
                         <Tooltip anchorSelect={`#input-handler-${index}`} clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                             <span>{h.tooltip(navigator.language)}</span>
                         </Tooltip>
-                    </>
+                    </div>
                 })}
+                <div id="input-handler-creator-entry">
+                    <IconCircleWrapper width={35} height={35} onClick={startAddingCustomInputHandler}>
+                        <FiPlus />
+                    </IconCircleWrapper>
+                </div>
+                <Tooltip anchorSelect="#input-handler-creator-entry" clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
+                    <span>Add your custom instruction</span>
+                </Tooltip>
+                {compState.type === 'addingCustomInputHandler' && <InputHandlerCreator cancelCallback={cancelAddingCustomInputHandler} inputHandlerAdded={inputHandlerAdded} />}
             </div >
         </div>
         {/* revision DiffView pop-up */}
@@ -436,6 +577,71 @@ export function MessageInput({
 }
 
 let enableVoiceModeShortcutTimer: NodeJS.Timeout
+
+function InputHandlerCreator({ cancelCallback, inputHandlerAdded }: { cancelCallback: () => void, inputHandlerAdded: (handler: InputHandler) => void }) {
+    const [type, setType] = useState<InputHandlerTypes>(InputHandlerTypes.Generation);
+    const [instruction, setInstruction] = useState('');
+    const [tooltip, setTooltip] = useState('');
+    const [icon, setIcon] = useState('');
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={cancelCallback}></div>
+            <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg z-50">
+                {/* type selector */}
+                <h2 className="text-2xl font-bold mb-4">Custom Instruction</h2>
+                <div className="mb-4">
+                    <label htmlFor="type" className="block text-gray-700 font-bold mb-2">Type</label>
+                    <select id="type" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        value={type} onChange={(e) => setType(e.target.value as InputHandlerTypes)}>
+                        <option value="generation">Generation</option>
+                        <option value="revision">Revision</option>
+                    </select>
+                </div>
+                {/* instruction */}
+                <div className="mb-4">
+                    <label htmlFor="instruction" className="block text-gray-700 font-bold mb-2">Instruction</label>
+                    <textarea id="instruction" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        value={instruction} onChange={(e) => setInstruction(e.target.value)}></textarea>
+                </div>
+                {/* tooltip */}
+                <div className="mb-4">
+                    <label htmlFor="tooltip" className="block text-gray-700 font-bold mb-2">Tooltip</label>
+                    <input type="text" id="tooltip" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        value={tooltip} onChange={(e) => setTooltip(e.target.value)}></input>
+                </div>
+                {/* icon */}
+                <div className="mb-4">
+                    <label htmlFor="icon" className="block text-gray-700 font-bold mb-2">Icon</label>
+                    <input type="text" id="icon" maxLength={1} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                        placeholder="please enter only one character"
+                        onChange={(e) => {
+                            const value = Array.from(e.target.value)[0] || "";
+                            setIcon(value);
+                        }}></input>
+                    <p className="text-gray-600 text-xs italic">Custom icon feature will be available soon. For now, please use a single character as icon.</p>
+                </div>
+                {/* add button */}
+                <div className="flex items-center justify-between">
+                    <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button"
+                        onClick={() => {
+                            if (type === InputHandlerTypes.Generation) {
+                                inputHandlerAdded(new CommonGenerationHandler(instruction, tooltip, icon));
+                            } else {
+                                inputHandlerAdded(new CommonRevisionHandler(instruction, tooltip, icon));
+                            }
+                        }}>
+                        Add
+                    </button>
+                    <button className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button" onClick={cancelCallback}>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+
+}
 
 function TextInput(
     { allowEdit, chatKey, addMessage, updateMessage, revisionMessage }: {
@@ -800,6 +1006,12 @@ export function DiffView(
         </div>
     );
 }
+
+
+
+
+
+
 
 
 
