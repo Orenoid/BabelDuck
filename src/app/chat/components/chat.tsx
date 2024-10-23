@@ -8,7 +8,8 @@ import { type Message } from "../lib/message";
 import { RecommendedRespMessage, SpecialRoleTypes as SpecialRoles, StreamingTextMessage, TextMessage } from "./message";
 import { IoIosArrowDown } from "react-icons/io";
 import { readStreamableValue } from "ai/rsc";
-import { InputHandler, MessageInput } from "./input";
+import { MessageInput } from "./input";
+import { InputHandler } from "./input-handlers";
 
 export function Chat({ chatID, loadChatByID, className = "" }: {
     chatID: string,

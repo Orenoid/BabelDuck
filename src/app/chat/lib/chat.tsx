@@ -1,4 +1,4 @@
-import { GrammarCheckingHandler, InputHandler, RespGenerationHandler, TranslationHandler } from "../components/input";
+import { GrammarCheckingHandler, InputHandler, RespGenerationHandler, TranslationHandler } from "../components/input-handlers";
 import { StreamingTextMessage, SystemMessage, TextMessage } from "../components/message";
 import { Message } from "./message";
 
