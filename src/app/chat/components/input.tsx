@@ -5,7 +5,7 @@ import { FaBackspace, FaMicrophone } from "react-icons/fa";
 import { LuSettings, LuUserCog2 } from "react-icons/lu";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
-import { IconCircleWrapper, TextMessage } from "./message";
+import { IconCircleWrapper, SpecialRoleTypes, TextMessage } from "./message";
 import { diffChars } from "diff";
 import { LiaComments } from "react-icons/lia";
 import { PiKeyReturnBold } from "react-icons/pi";
@@ -399,7 +399,6 @@ function TextInput(
     const isRecording = inputState.type === 'recording'
 
     const defaultRole = 'user'
-    const [role, setRole] = useState<'system' | 'user' | 'assistant'>(defaultRole);
     const [showRoleMenu, setShowRoleMenu] = useState(false);
 
     const [msg, setMsg] = useState<TextMessage>(new TextMessage(defaultRole, ''))
@@ -417,7 +416,7 @@ function TextInput(
     }, [msg.content, revisionMessage])
 
     useEffect(() => {
-        setMsg(new TextMessage(role, ''))
+        setMsg(new TextMessage(defaultRole, ''))
         setTimeout(() => {
             if (inputState.type === 'voiceMode') {
                 inputDivRef.current?.focus()
@@ -435,7 +434,7 @@ function TextInput(
         if (inputState.type !== 'typing' && inputState.type !== 'voiceMode') return;
         if (msg.content.trim() === "") return;
         addMessage(msg, callbackOpts);
-        setMsg(new TextMessage(role, ''));
+        setMsg(prev => new TextMessage(prev.role, ''));
         if (inputState.type === 'typing') {
             textAreaRef.current?.focus();
         }
@@ -573,16 +572,16 @@ function TextInput(
             {/* current message role */}
             <div className="relative flex flex-row rounded-full hover:bg-gray-300">
                 <div className="flex flex-row p-1 px-3 cursor-pointer" onClick={() => setShowRoleMenu(!showRoleMenu)}>
-                    <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{role}</span>
+                    <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{msg.role}</span>
                 </div>
                 {showRoleMenu && (
                     <>
                         <div className="fixed inset-0 z-10 bg-black opacity-0" onClick={() => setShowRoleMenu(false)}></div>
                         <div className="absolute bottom-full left-0 mb-1 p-2 bg-white border border-gray-300 rounded-lg z-20">
                             {/* Add role options here */}
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('system'); setShowRoleMenu(false); }}>system</div>
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('assistant'); setShowRoleMenu(false); }}>assistant</div>
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('user'); setShowRoleMenu(false); }}>user</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.SYSTEM, prev.content)); setShowRoleMenu(false); }}>system</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.ASSISTANT, prev.content)); setShowRoleMenu(false); }}>assistant</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.USER, prev.content)); setShowRoleMenu(false); }}>user</div>
                         </div>
                     </>
                 )}
