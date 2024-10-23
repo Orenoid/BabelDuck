@@ -18,6 +18,7 @@ import { Tooltip } from "react-tooltip";
 import { TbPencilQuestion } from "react-icons/tb";
 import { FiPlus } from "react-icons/fi";
 import { addInputHandlerToLocalStorage } from "../lib/chat";
+import { IoMdInformationCircleOutline } from "react-icons/io";
 
 enum InputHandlerTypes {
     Generation = "generation",
@@ -595,8 +596,19 @@ function InputHandlerCreator({ cancelCallback, inputHandlerAdded }: { cancelCall
                     <select id="type" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                         value={type} onChange={(e) => setType(e.target.value as InputHandlerTypes)}>
                         <option value="generation">Generation</option>
-                        <option value="revision">Revision</option>
+                        <option value="revision">Modification</option>
                     </select>
+                    <div className="flex flex-row items-start mt-1">
+                        <IoMdInformationCircleOutline className="text-gray-400 mr-2 mt-1" />
+                        {type === InputHandlerTypes.Generation && <p className="text-gray-400 text-base italic">
+                            A generation instruction is to tell the AI to generate a response for you. It can only work while your input is empty. <br />
+                            Try to keep the instruction concise and specific, telling the AI what the response should be like.
+                        </p>}
+                        {type === InputHandlerTypes.Revision && <p className="text-gray-400 text-base italic">
+                            A modification instruction is to tell the AI to modify your current input. It can work while your input is not empty. <br />
+                            You can use it to do something like correcting a grammar mistake, polishing your expression, or translating your input into another language.
+                        </p>}
+                    </div>
                 </div>
                 {/* instruction */}
                 <div className="mb-4">
@@ -606,7 +618,13 @@ function InputHandlerCreator({ cancelCallback, inputHandlerAdded }: { cancelCall
                 </div>
                 {/* tooltip */}
                 <div className="mb-4">
-                    <label htmlFor="tooltip" className="block text-gray-700 font-bold mb-2">Tooltip</label>
+                    <div className="flex flex-row items-center mb-2">
+                        <label htmlFor="tooltip" className="block text-gray-700 font-bold mr-2">Tooltip</label>
+                        <IoMdInformationCircleOutline className="text-gray-400" id="tooltip-info" />
+                        <Tooltip anchorSelect="#tooltip-info" clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
+                            <span>The tooltip is the text that will be shown when you hover over the icon, like what you see here.</span>
+                        </Tooltip>
+                    </div>
                     <input type="text" id="tooltip" className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                         value={tooltip} onChange={(e) => setTooltip(e.target.value)}></input>
                 </div>
@@ -619,11 +637,14 @@ function InputHandlerCreator({ cancelCallback, inputHandlerAdded }: { cancelCall
                             const value = Array.from(e.target.value)[0] || "";
                             setIcon(value);
                         }}></input>
-                    <p className="text-gray-600 text-xs italic">Custom icon feature will be available soon. For now, please use a single character as icon.</p>
+                    <p className="text-gray-400 text-xs italic mt-1">Custom icon feature will be available soon. For now, please use a single character as icon.</p>
                 </div>
                 {/* add button */}
-                <div className="flex items-center justify-between">
-                    <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button"
+                <div className="flex items-center justify-end">
+                    <button className="text-gray-400 font-bold py-2 px-4 rounded-lg bg-transparent mr-2" type="button" onClick={cancelCallback}>
+                        Cancel
+                    </button>
+                    <button className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg" type="button"
                         onClick={() => {
                             if (type === InputHandlerTypes.Generation) {
                                 inputHandlerAdded(new CommonGenerationHandler(instruction, tooltip, icon));
@@ -632,9 +653,6 @@ function InputHandlerCreator({ cancelCallback, inputHandlerAdded }: { cancelCall
                             }
                         }}>
                         Add
-                    </button>
-                    <button className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="button" onClick={cancelCallback}>
-                        Cancel
                     </button>
                 </div>
             </div>
