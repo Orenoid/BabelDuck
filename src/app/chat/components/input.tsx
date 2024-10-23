@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FaBackspace, FaMicrophone, FaSpellCheck } from "react-icons/fa";
-import { LuUserCog2 } from "react-icons/lu";
+import { LuSettings, LuUserCog2 } from "react-icons/lu";
 import { MdGTranslate } from "react-icons/md";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
 import { IconCircleWrapper, TextMessage } from "./message";
 import { diffChars } from "diff";
 import { LiaComments } from "react-icons/lia";
-import { PiKeyReturnBold } from "react-icons/pi";
+import { PiKeyReturnBold, PiWrenchBold } from "react-icons/pi";
 import { Message } from "../lib/message";
 import { chatCompletion } from "../lib/chat-server";
 import Switch from "react-switch"
@@ -54,18 +54,23 @@ export abstract class InputHandler {
         this.type = type;
     }
 
+    // the tooltip to be shown while hovering over the icon
     abstract tooltip(lang: string): string
+
+    // the instruction to guide the model to generate or modify the message
     abstract instruction(): string
 
+    // serialize the input handler to a string  
     abstract serialize(): string;
 
+    // deserialize the input handler from a string
     static deserialize(serialized: string): InputHandler {
         const { implType } = JSON.parse(serialized);
         const deserialize = inputHandlerHub.getHandlerClassByImplType(implType);
         if (deserialize) {
             return deserialize(serialized);
         } else {
-            throw new Error(`未实现 implType 为 ${implType} 的反序列化方法`);
+            throw new Error(`Deserialization method for implType ${implType} is not implemented`);
         }
     }
 }
@@ -543,6 +548,10 @@ export function MessageInput({
                         </div>
                         <Tooltip anchorSelect={`#input-handler-${index}`} clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                             <span>{h.tooltip(navigator.language)}</span>
+                            <div className="flex flex-row justify-end items-center mt-3">
+                                {/* <div className="text-white text-sm mr-1">Settings</div> */}
+                                <LuSettings className="text-white cursor-pointer" />
+                            </div>
                         </Tooltip>
                     </div>
                 })}
