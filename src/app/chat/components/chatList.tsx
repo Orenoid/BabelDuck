@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { AddNewChat, type ChatSelection, ChatSelectionListLoader, UpdateChatTitle } from "../lib/chat";
+import { AddNewChat, type ChatSelection, ChatSelectionListLoader, UpdateChatTitle, deleteChatData } from "../lib/chat";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { FiMoreHorizontal } from "react-icons/fi";
 import { FaPlus } from "react-icons/fa";
 import { SystemMessage } from "./message";
-import { MdModeEdit } from "react-icons/md";
+import { MdDelete, MdModeEdit } from "react-icons/md";
 import { SiTheconversation } from "react-icons/si";
 
 
@@ -77,6 +77,11 @@ export function ChatSelection({ id: chatID, title, className = "", selected = fa
         dispatch(updateChatTitle({ chatID, newTitle }))
     }
 
+    function _deleteChat(chatID: string) {
+        deleteChatData(chatID)
+        dispatch(deleteChat(chatID))
+    }
+
     return (
         <div className={showMore || isEditing ? "relative" : ""}>
             <div className={`pl-4 py-2 pr-2 my-1 cursor-pointer rounded-md hover:bg-gray-200 ${className} ${selected ? "bg-gray-200" : ""}`}
@@ -138,6 +143,9 @@ export function ChatSelection({ id: chatID, title, className = "", selected = fa
                         <div className="p-2 cursor-pointer hover:bg-gray-100" onClick={() => setCompState({ type: 'titleUnderEdit', titleUnderEdit: title })}>
                             <MdModeEdit className="inline-block mr-1" /> Rename
                         </div>
+                        <div className="p-2 cursor-pointer hover:bg-gray-100" onClick={() => _deleteChat(chatID)}>
+                            <MdDelete className="inline-block mr-1" /> Delete
+                        </div>
                     </div>
                     <div className="fixed inset-0 bg-white opacity-0"
                         onClick={() => setCompState({ type: 'normal', showMoreBtn: false })}>
@@ -164,6 +172,12 @@ const chatSelectionListSlice = createSlice(
                 state.selectionList = [chatSelection.payload, ...state.selectionList]
                 state.currentChatID = chatSelection.payload.id
             },
+            deleteChat: (state, chatID: PayloadAction<string>) => {
+                state.selectionList = state.selectionList.filter(chat => chat.id !== chatID.payload)
+                if (state.currentChatID === chatID.payload) {
+                    state.currentChatID = state.selectionList[0]?.id
+                }
+            },
             setChatSelectionList: (state, chatSelectionList: PayloadAction<ChatSelection[]>) => {
                 state.selectionList = chatSelectionList.payload
             },
@@ -179,5 +193,5 @@ const chatSelectionListSlice = createSlice(
         }
     },
 )
-export const { addNewChat, setChatSelectionList, setCurrentChatID, updateChatTitle } = chatSelectionListSlice.actions
+export const { addNewChat, setChatSelectionList, setCurrentChatID, updateChatTitle, deleteChat } = chatSelectionListSlice.actions
 export const chatSelectionListReducer = chatSelectionListSlice.reducer

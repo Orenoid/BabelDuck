@@ -182,3 +182,9 @@ export interface ChatSelection {
     id: string;
     title: string;
 }
+
+export function deleteChatData(chatID: string) {
+    const chats = JSON.parse(localStorage.getItem('chats') || '[]');
+    const updatedChats = chats.filter((chat: ChatSelection) => chat.id !== chatID);
+    localStorage.setItem('chats', JSON.stringify(updatedChats));
+}
