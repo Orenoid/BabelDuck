@@ -1,4 +1,4 @@
-import { GrammarCheckingHandler, InputHandler, RespGenerationHandler, TranslationHandler } from "../components/input";
+import { GrammarCheckingHandler, InputHandler, RespGenerationHandler, TranslationHandler } from "../components/input-handlers";
 import { StreamingTextMessage, SystemMessage, TextMessage } from "../components/message";
 import { Message } from "./message";
 
@@ -57,15 +57,27 @@ export function loadInputHandlers(chatID: string): InputHandler[] {
 
     // 如果 localStorage 中没有数据，返回空数组
     if (!inputHandlersJSON) {
-        return [new TranslationHandler("English"), new RespGenerationHandler(), new GrammarCheckingHandler()];
+        const defaultHandlers = [new TranslationHandler("English"), new RespGenerationHandler(), new GrammarCheckingHandler()];
+        addInputHandlerToLocalStorage(chatID, defaultHandlers);
+        return defaultHandlers;
     }
 
-    const rawHandlers: string[] = JSON.parse(inputHandlersJSON);
-    const inputHandlers: InputHandler[] = rawHandlers.map((rawHandler) => {
-        return InputHandler.deserialize(rawHandler);
-    });
+    const inputHandlers: string[] = JSON.parse(inputHandlersJSON);
+    return inputHandlers.map((handler) => InputHandler.deserialize(handler));
+}
 
-    return inputHandlers;
+export function addInputHandlerToLocalStorage(chatID: string, handlers: InputHandler[]): void {
+    const inputHandlersJSON = localStorage.getItem(`inputHandlers_${chatID}`);
+    const inputHandlers: string[] = inputHandlersJSON ? JSON.parse(inputHandlersJSON) : [];
+    inputHandlers.push(...handlers.map((handler) => handler.serialize()));
+    localStorage.setItem(`inputHandlers_${chatID}`, JSON.stringify(inputHandlers));
+}
+
+export function updateInputHandlerInLocalStorage(chatID: string, handlerIndex: number, handler: InputHandler): void {
+    const inputHandlersJSON = localStorage.getItem(`inputHandlers_${chatID}`);
+    const inputHandlers: string[] = inputHandlersJSON ? JSON.parse(inputHandlersJSON) : [];
+    inputHandlers[handlerIndex] = handler.serialize();
+    localStorage.setItem(`inputHandlers_${chatID}`, JSON.stringify(inputHandlers));
 }
 
 export function persistMessageUpdateInChat(chatID: string, messageID: number, updateMessage: Message): void {

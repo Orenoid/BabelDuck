@@ -8,7 +8,8 @@ import { type Message } from "../lib/message";
 import { RecommendedRespMessage, SpecialRoleTypes as SpecialRoles, StreamingTextMessage, TextMessage } from "./message";
 import { IoIosArrowDown } from "react-icons/io";
 import { readStreamableValue } from "ai/rsc";
-import { InputHandler, MessageInput } from "./input";
+import { MessageInput } from "./input";
+import { InputHandler } from "./input-handlers";
 
 export function Chat({ chatID, loadChatByID, className = "" }: {
     chatID: string,
@@ -136,6 +137,7 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
 
         <MessageList className="flex-initial overflow-auto w-4/5 h-full" messageList={currentMessageList} updateMessage={updateMessage} />
         <MessageInput className="w-4/5"
+            chatID={chatID}
             key={inputCompKey} chatKey={chatKey}
             inputHandlers={inputHandlers}
             addMesssage={addMesssage} messageList={currentMessageList}

@@ -1,151 +1,27 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FaBackspace, FaMicrophone, FaSpellCheck } from "react-icons/fa";
-import { LuUserCog2 } from "react-icons/lu";
-import { MdGTranslate } from "react-icons/md";
+import { FaBackspace, FaMicrophone } from "react-icons/fa";
+import { LuSettings, LuUserCog2 } from "react-icons/lu";
 import { Audio, Oval } from "react-loader-spinner";
 import { messageAddedCallbackOptions } from "./chat";
-import { IconCircleWrapper, TextMessage } from "./message";
+import { IconCircleWrapper, SpecialRoleTypes, TextMessage } from "./message";
 import { diffChars } from "diff";
 import { LiaComments } from "react-icons/lia";
 import { PiKeyReturnBold } from "react-icons/pi";
 import { Message } from "../lib/message";
 import { chatCompletion } from "../lib/chat-server";
-import Switch from "react-switch"
+import Switch from "react-switch";
 import { IMediaRecorder } from "extendable-media-recorder";
 import { Tooltip } from "react-tooltip";
-import { TbPencilQuestion } from "react-icons/tb";
-
-enum InputHandlerTypes {
-    Generation = "generation",
-    Revision = "revision"
-}
-
-export abstract class InputHandler {
-    readonly implType: string
-    readonly type: InputHandlerTypes
-
-    iconNode: React.ReactNode
-    shortcutKeyCallback?: (e: React.KeyboardEvent) => boolean;
-    // TODO declare compatible message types
-
-    constructor(implType: string, type: InputHandlerTypes) {
-        this.implType = implType;
-        this.type = type;
-    }
-
-    abstract tooltip(lang: string): string
-    abstract instruction(): string
-
-    abstract serialize(): string;
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    static deserialize(serialized: string): InputHandler {
-        // Return an instance of a concrete subclass of InputHandler
-        // This is a placeholder and should be implemented by subclasses
-        throw new Error("Deserialization not implemented for InputHandler");
-    }
-}
-
-export class TranslationHandler extends InputHandler {
-    targetLanguage: string
-
-    constructor(targetLanguage: string) {
-        super('translation', InputHandlerTypes.Revision)
-        this.targetLanguage = targetLanguage
-        this.iconNode = <MdGTranslate size={20} />
-        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'k' && (e.metaKey || e.ctrlKey)
-    }
-
-    tooltip(lang: string): string {
-        // TODO introduce real i18n solution
-        if (lang.startsWith("zh")) {
-            return `将消息内容翻译为 ${this.targetLanguage}`
-        } else {
-            return `Translate the message into ${this.targetLanguage}.`
-        }
-    }
-
-    instruction(): string {
-        return `Translate it into ${this.targetLanguage} to express the same meaning.`
-    }
-
-    serialize(): string {
-        return JSON.stringify({
-            implType: this.implType,
-            type: this.type,
-            targetLanguage: this.targetLanguage
-        });
-    }
-
-    static deserialize(serialized: string): TranslationHandler {
-        const { targetLanguage } = JSON.parse(serialized);
-        return new TranslationHandler(targetLanguage);
-    }
-}
-
-export class RespGenerationHandler extends InputHandler {
-    constructor() {
-        super('respGeneration', InputHandlerTypes.Generation);
-        this.iconNode = <TbPencilQuestion size={20} />;
-        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === '/' && (e.metaKey || e.ctrlKey);
-    }
-
-    tooltip(lang: string): string {
-        if (lang.startsWith("zh")) {
-            return "协助生成对应的回复";
-        } else {
-            return "Help generate a response.";
-        }
-    }
-
-    instruction(): string {
-        return "Help me respond it.";
-    }
-
-    serialize(): string {
-        return JSON.stringify({
-            implType: this.implType,
-            type: this.type
-        });
-    }
-
-    static deserialize(): RespGenerationHandler {
-        return new RespGenerationHandler();
-    }
-}
-
-export class GrammarCheckingHandler extends InputHandler {
-    constructor() {
-        super('grammarChecking', InputHandlerTypes.Revision);
-        this.iconNode = <FaSpellCheck size={20} className="ml-[-2px]" />;
-        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey);
-    }
-
-    tooltip(lang: string): string {
-        if (lang.startsWith("zh")) {
-            return "检查并修正可能存在的语法问题";
-        } else {
-            return "Correct potential grammar issues";
-        }
-    }
-
-    instruction(): string {
-        return "Correct potential grammar issues.";
-    }
-
-    serialize(): string {
-        return JSON.stringify({
-            implType: this.implType,
-            type: this.type
-        });
-    }
-
-    static deserialize(): GrammarCheckingHandler {
-        return new GrammarCheckingHandler();
-    }
-}
+import { FiPlus } from "react-icons/fi";
+import { addInputHandlerToLocalStorage, updateInputHandlerInLocalStorage } from "../lib/chat";
+import {
+    InputHandler,
+    InputHandlerTypes,
+    CustomInputHandlerCreator
+} from "./input-handlers";
+import { Overlay } from "@/app/ui-utils/components/overlay";
 
 export async function reviseMessage(
     messageToRevise: string,
@@ -290,12 +166,15 @@ function messageToText(message: Message): string {
 export type MessageInputState =
     | { type: 'init' }
     | { type: 'normal'; message: Message; fromRevision: boolean }
+    | { type: 'addingCustomInputHandler', previousState: MessageInputState }
+    | { type: 'settingsPanel'; handlerIndex: number; previousState: MessageInputState }
     | { type: 'revising'; message: Message; revisingIndex: number; }
     | { type: 'waitingApproval'; message: Message; revisedMsg: Message; revisionInstruction: string; };
 
 export function MessageInput({
-    messageList, inputHandlers, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
+    chatID, messageList, inputHandlers, addMesssage, chatKey, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
 }: {
+    chatID: string
     messageList: Message[];
     inputHandlers: InputHandler[]
     addMesssage: (message: Message, callbackOpts?: messageAddedCallbackOptions) => void;
@@ -362,6 +241,46 @@ export function MessageInput({
         setCompState({ type: 'normal', message: compState.message, fromRevision: false });
         setRejectionSignal(prev => prev + 1)
     }
+    function startAddingCustomInputHandler() {
+        if (!isNormal) {
+            return;
+        }
+        setCompState({ type: 'addingCustomInputHandler', previousState: compState });
+    }
+    function cancelAddingCustomInputHandler() {
+        if (compState.type !== 'addingCustomInputHandler') {
+            return;
+        }
+        setCompState(compState.previousState);
+    }
+    function startUpdatingInputHandler(handlerIndex: number) {
+        if (!isNormal) {
+            return;
+        }
+        setCompState({ type: 'settingsPanel', handlerIndex, previousState: compState });
+    }
+    function cancelUpdatingInputHandler() {
+        if (compState.type !== 'settingsPanel') {
+            return;
+        }
+        setCompState(compState.previousState);
+    }
+    function inputHandlerAdded(handler: InputHandler) {
+        if (compState.type !== 'addingCustomInputHandler') {
+            return;
+        }
+        addInputHandlerToLocalStorage(chatID, [handler]);
+        setCompState(compState.previousState);
+        inputHandlers.push(handler); // TODO need to find out why this would work...
+    }
+    function updateInputHandler(handler: InputHandler) {
+        if (compState.type !== 'settingsPanel') {
+            return;
+        }
+        updateInputHandlerInLocalStorage(chatID, compState.handlerIndex, handler);
+        inputHandlers[compState.handlerIndex] = handler;
+        setCompState(compState.previousState);
+    }
 
     function calculateTextAreaHeight(): number {
         // TODO
@@ -396,23 +315,45 @@ export function MessageInput({
                             </IconCircleWrapper>
                         </div>
                     }
+                    const SettingsPanel = h.settingsPanel();
+                    const configurable = SettingsPanel !== undefined;
                     // icons to display in normal status
-                    return <>
-                        <div key={index} id={`input-handler-${index}`}>
-                            <IconCircleWrapper width={35} height={35}>
-                                <button className="" key={index}
-                                    onClick={() => {
-                                        const ii = index;
-                                        startRevising(ii);
-                                    }}>{h.iconNode}
-                                </button>
+                    return <div key={index}>
+                        <div id={`input-handler-${index}`}>
+                            <IconCircleWrapper
+                                width={35}
+                                height={35}
+                                onClick={() => {
+                                    const ii = index;
+                                    startRevising(ii);
+                                }}
+                            >
+                                {h.iconNode}
                             </IconCircleWrapper>
                         </div>
                         <Tooltip anchorSelect={`#input-handler-${index}`} clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                             <span>{h.tooltip(navigator.language)}</span>
+                            {configurable && <div className="flex flex-row justify-end items-center mt-3">
+                                <LuSettings className="text-white cursor-pointer" onClick={() => startUpdatingInputHandler(index)} />
+                            </div>}
                         </Tooltip>
-                    </>
+                        {compState.type === 'settingsPanel' && compState.handlerIndex === index && configurable &&
+                            <>
+                                <Overlay onClick={cancelUpdatingInputHandler} />
+                                <SettingsPanel updateHandler={updateInputHandler} />
+                            </>
+                        }
+                    </div>
                 })}
+                <div id="input-handler-creator-entry">
+                    <IconCircleWrapper width={35} height={35} onClick={startAddingCustomInputHandler}>
+                        <FiPlus />
+                    </IconCircleWrapper>
+                </div>
+                <Tooltip anchorSelect="#input-handler-creator-entry" clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
+                    <span>Add your custom instruction</span>
+                </Tooltip>
+                {compState.type === 'addingCustomInputHandler' && <CustomInputHandlerCreator cancelCallback={cancelAddingCustomInputHandler} inputHandlerAdded={inputHandlerAdded} />}
             </div >
         </div>
         {/* revision DiffView pop-up */}
@@ -487,7 +428,6 @@ function TextInput(
     const isRecording = inputState.type === 'recording'
 
     const defaultRole = 'user'
-    const [role, setRole] = useState<'system' | 'user' | 'assistant'>(defaultRole);
     const [showRoleMenu, setShowRoleMenu] = useState(false);
 
     const [msg, setMsg] = useState<TextMessage>(new TextMessage(defaultRole, ''))
@@ -505,7 +445,7 @@ function TextInput(
     }, [msg.content, revisionMessage])
 
     useEffect(() => {
-        setMsg(new TextMessage(role, ''))
+        setMsg(new TextMessage(defaultRole, ''))
         setTimeout(() => {
             if (inputState.type === 'voiceMode') {
                 inputDivRef.current?.focus()
@@ -523,7 +463,7 @@ function TextInput(
         if (inputState.type !== 'typing' && inputState.type !== 'voiceMode') return;
         if (msg.content.trim() === "") return;
         addMessage(msg, callbackOpts);
-        setMsg(new TextMessage(role, ''));
+        setMsg(prev => new TextMessage(prev.role, ''));
         if (inputState.type === 'typing') {
             textAreaRef.current?.focus();
         }
@@ -661,16 +601,16 @@ function TextInput(
             {/* current message role */}
             <div className="relative flex flex-row rounded-full hover:bg-gray-300">
                 <div className="flex flex-row p-1 px-3 cursor-pointer" onClick={() => setShowRoleMenu(!showRoleMenu)}>
-                    <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{role}</span>
+                    <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{msg.role}</span>
                 </div>
                 {showRoleMenu && (
                     <>
                         <div className="fixed inset-0 z-10 bg-black opacity-0" onClick={() => setShowRoleMenu(false)}></div>
                         <div className="absolute bottom-full left-0 mb-1 p-2 bg-white border border-gray-300 rounded-lg z-20">
                             {/* Add role options here */}
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('system'); setShowRoleMenu(false); }}>system</div>
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('assistant'); setShowRoleMenu(false); }}>assistant</div>
-                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setRole('user'); setShowRoleMenu(false); }}>user</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.SYSTEM, prev.content)); setShowRoleMenu(false); }}>system</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.ASSISTANT, prev.content)); setShowRoleMenu(false); }}>assistant</div>
+                            <div className="cursor-pointer hover:bg-gray-200 p-2" onClick={() => { setMsg(prev => new TextMessage(SpecialRoleTypes.USER, prev.content)); setShowRoleMenu(false); }}>user</div>
                         </div>
                     </>
                 )}
@@ -800,6 +740,14 @@ export function DiffView(
         </div>
     );
 }
+
+
+
+
+
+
+
+
 
 
 
