@@ -37,9 +37,10 @@ export default function Home() {
       {/* content */}
       {/* can't figure out why using mt-12 here stretches the page height, 
           while the mt-12 on ChatSelectionList does not... */}
-      <div className="pt-12 w-full">
+      <div className="w-full">
         {chatSelected && <Chat className="h-full w-full"
           chatID={chatSelectionList.currentChatID as string}
+          chatTitle={chatSelectionList.selectionList.find(chat => chat.id === chatSelectionList.currentChatID)?.title as string}
           key={chatSelectionList.currentChatID as string}
           loadChatByID={LoadChatByIDFromLocalStorage} />}
       </div>

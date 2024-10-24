@@ -10,9 +10,11 @@ import { IoIosArrowDown } from "react-icons/io";
 import { readStreamableValue } from "ai/rsc";
 import { MessageInput } from "./input";
 import { InputHandler } from "./input-handlers";
+import { SiTheconversation } from "react-icons/si";
 
-export function Chat({ chatID, loadChatByID, className = "" }: {
+export function Chat({ chatID, chatTitle, loadChatByID, className = "" }: {
     chatID: string,
+    chatTitle: string,
     loadChatByID: ChatLoader
     className?: string;
 }) {
@@ -125,8 +127,14 @@ export function Chat({ chatID, loadChatByID, className = "" }: {
     }
 
     return <div className={`flex flex-col flex-grow items-center rounded-lg pb-4 ${className}`}>
-        {/* Chat title */}
-        {/* <div className={`self-start ml-[100px] font-bold text-xl pt-2 w-4/5 text-[#5f5f5f]`}>New Chat</div> */}
+        {/* top bar */}
+        <div className="flex flex-row self-start justify-start mb-12 mt-6">
+            {/* Chat title */}
+            <div className="flex flex-row items-center ml-12">
+                <SiTheconversation className="mr-3 relative top-[1.5px]" />
+                <div className={`font-bold text-xl text-[#5f5f5f]`}>{chatTitle}</div>
+            </div>
+        </div>
 
         {/* button for jumping back to top level while in follow-up discussions */}
         {!isTopLevel &&
