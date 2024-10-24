@@ -73,6 +73,13 @@ export function addInputHandlerToLocalStorage(chatID: string, handlers: InputHan
     localStorage.setItem(`inputHandlers_${chatID}`, JSON.stringify(inputHandlers));
 }
 
+export function updateInputHandlerInLocalStorage(chatID: string, handlerIndex: number, handler: InputHandler): void {
+    const inputHandlersJSON = localStorage.getItem(`inputHandlers_${chatID}`);
+    const inputHandlers: string[] = inputHandlersJSON ? JSON.parse(inputHandlersJSON) : [];
+    inputHandlers[handlerIndex] = handler.serialize();
+    localStorage.setItem(`inputHandlers_${chatID}`, JSON.stringify(inputHandlers));
+}
+
 export function persistMessageUpdateInChat(chatID: string, messageID: number, updateMessage: Message): void {
     // 从 localStorage 读取现有的消息列表
     const messageListJSON = localStorage.getItem(`chat_${chatID}`);

@@ -4,6 +4,8 @@ import { FaSpellCheck } from "react-icons/fa";
 import { useState } from "react";
 import { IoMdInformationCircleOutline } from "react-icons/io";
 import { Tooltip } from "react-tooltip";
+import { Overlay } from "@/app/ui-utils/components/overlay";
+import { FilledButton, TransparentButton } from "@/app/ui-utils/components/button";
 
 // Define InputHandlerTypes enum
 export enum InputHandlerTypes {
@@ -41,6 +43,9 @@ export abstract class InputHandler {
 
     abstract tooltip(lang: string): string;
     abstract instruction(): string;
+    // return undefined if this handler does not have a settings panel, means it's unconfigurable
+    abstract settingsPanel(): InputHandlerSettingsPanel | undefined;
+
     abstract serialize(): string;
 
     static deserialize(serialized: string): InputHandler {
@@ -53,6 +58,11 @@ export abstract class InputHandler {
         }
     }
 }
+
+type InputHandlerSettingsPanel = ({ }: {
+    updateHandler: (handler: InputHandler) => void,
+    className?: string
+}) => JSX.Element
 
 // Define TranslationHandler class
 export class TranslationHandler extends InputHandler {
@@ -69,12 +79,24 @@ export class TranslationHandler extends InputHandler {
         if (lang.startsWith("zh")) {
             return `将消息内容翻译为 ${this.targetLanguage}`;
         } else {
-            return `Translate the message into ${this.targetLanguage}.`;
+            return `Translate your input into ${this.targetLanguage}.`;
         }
     }
 
     instruction(): string {
         return `Translate it into ${this.targetLanguage} to express the same meaning.`;
+    }
+
+    settingsPanel(): InputHandlerSettingsPanel {
+        const Root = ({ updateHandler, className }: { updateHandler: (handler: InputHandler) => void, className?: string }) => {
+            const [targetLanguage, setTargetLanguage] = useState(this.targetLanguage);
+            return <div className={`flex flex-col justify-between fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg z-50 ${className}`}>
+                <span className="mb-2"> Translate your input into </span>
+                <input className="border-2 border-gray-300 rounded-md p-2" type="text" id="targetLanguage" value={targetLanguage} onChange={(e) => { setTargetLanguage(e.target.value) }} />
+                <FilledButton className="mt-2 self-end" onClick={() => { updateHandler(new TranslationHandler(targetLanguage)) }}>Save</FilledButton>
+            </div>;
+        }
+        return Root;
     }
 
     serialize(): string {
@@ -93,6 +115,7 @@ export class TranslationHandler extends InputHandler {
 
 // Define RespGenerationHandler class
 export class RespGenerationHandler extends InputHandler {
+
     constructor() {
         super('respGeneration', InputHandlerTypes.Generation);
         this.iconNode = <TbPencilQuestion size={20} />;
@@ -111,6 +134,10 @@ export class RespGenerationHandler extends InputHandler {
         return "Help me respond it.";
     }
 
+    settingsPanel(): InputHandlerSettingsPanel | undefined {
+        return undefined;
+    }
+
     serialize(): string {
         return JSON.stringify({
             implType: this.implType,
@@ -123,8 +150,107 @@ export class RespGenerationHandler extends InputHandler {
     }
 }
 
+// Define GrammarCheckingHandler class
+export class GrammarCheckingHandler extends InputHandler {
+
+    constructor() {
+        super('grammarChecking', InputHandlerTypes.Revision);
+        this.iconNode = <FaSpellCheck size={20} className="ml-[-2px]" />;
+        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey);
+    }
+
+    tooltip(lang: string): string {
+        if (lang.startsWith("zh")) {
+            return "检查并修正可能存在的语法问题";
+        } else {
+            return "Correct potential grammar issues";
+        }
+    }
+
+    instruction(): string {
+        return "Correct potential grammar issues.";
+    }
+
+    settingsPanel(): InputHandlerSettingsPanel | undefined {
+        return undefined;
+    }
+
+    serialize(): string {
+        return JSON.stringify({
+            implType: this.implType,
+            type: this.type
+        });
+    }
+
+    static deserialize(): GrammarCheckingHandler {
+        return new GrammarCheckingHandler();
+    }
+}
+
+
 // Define CommonGenerationHandler class
 export class CommonGenerationHandler extends InputHandler {
+    settingsPanel(): InputHandlerSettingsPanel {
+        const Root = ({ updateHandler, className }: { updateHandler: (handler: InputHandler) => void, className?: string }) => {
+            const [instruction, setInstruction] = useState(this._instruction);
+            const [tooltip, setTooltip] = useState(this._tooltip);
+            const [icon, setIcon] = useState(this._iconChar);
+
+            return (
+                <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg z-50 ${className}`}>
+
+                    {/* Instruction */}
+                    <div className="mb-4">
+                        <label htmlFor="instruction" className="block text-gray-700 font-bold mb-2">Instruction</label>
+                        <textarea
+                            id="instruction"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={instruction}
+                            onChange={(e) => setInstruction(e.target.value)}
+                        ></textarea>
+                    </div>
+
+                    {/* Tooltip */}
+                    <div className="mb-4">
+                        <label htmlFor="tooltip" className="block text-gray-700 font-bold mb-2">Tooltip</label>
+                        <input
+                            type="text"
+                            id="tooltip"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={tooltip}
+                            onChange={(e) => setTooltip(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Icon */}
+                    <div className="mb-4">
+                        <label htmlFor="icon" className="block text-gray-700 font-bold mb-2">Icon</label>
+                        <input
+                            type="text"
+                            id="icon"
+                            maxLength={1}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={icon}
+                            onChange={(e) => {
+                                const value = Array.from(e.target.value)[0] || "";
+                                setIcon(value);
+                            }}
+                        />
+                        <p className="text-gray-400 text-xs italic mt-1">Please use a single character as icon.</p>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex items-center justify-end">
+                        <FilledButton className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg"
+                            onClick={() => updateHandler(new CommonGenerationHandler(instruction, tooltip, icon))}>
+                            Save
+                        </FilledButton>
+                    </div>
+                </div>
+            );
+        }
+        return Root;
+    }
     _instruction: string;
     _tooltip: string;
     _toolTipKey?: string;
@@ -177,6 +303,7 @@ export class CommonRevisionHandler extends InputHandler {
         this._tooltip = tooltip;
         this._iconChar = iconChar;
         this._toolTipKey = toolTipKey;
+        this.iconNode = <span>{iconChar}</span>;
     }
 
     tooltip(): string {
@@ -187,6 +314,66 @@ export class CommonRevisionHandler extends InputHandler {
         return this._instruction;
     }
 
+    settingsPanel(): InputHandlerSettingsPanel {
+        const Root = ({ updateHandler, className }: { updateHandler: (handler: InputHandler) => void, className?: string }) => {
+            const [instruction, setInstruction] = useState(this._instruction);
+            const [tooltip, setTooltip] = useState(this._tooltip);
+            const [icon, setIcon] = useState(this._iconChar);
+
+            return (
+                <div className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg z-50 ${className}`}>
+                    {/* Instruction */}
+                    <div className="mb-4">
+                        <label htmlFor="instruction" className="block text-gray-700 font-bold mb-2">Instruction</label>
+                        <textarea
+                            id="instruction"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={instruction}
+                            onChange={(e) => setInstruction(e.target.value)}
+                        ></textarea>
+                    </div>
+
+                    {/* Tooltip */}
+                    <div className="mb-4">
+                        <label htmlFor="tooltip" className="block text-gray-700 font-bold mb-2">Tooltip</label>
+                        <input
+                            type="text"
+                            id="tooltip"
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={tooltip}
+                            onChange={(e) => setTooltip(e.target.value)}
+                        />
+                    </div>
+
+                    {/* Icon */}
+                    <div className="mb-4">
+                        <label htmlFor="icon" className="block text-gray-700 font-bold mb-2">Icon</label>
+                        <input
+                            type="text"
+                            id="icon"
+                            maxLength={1}
+                            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                            value={icon}
+                            onChange={(e) => {
+                                const value = Array.from(e.target.value)[0] || "";
+                                setIcon(value);
+                            }}
+                        />
+                        <p className="text-gray-400 text-xs italic mt-1">Please use a single character as icon.</p>
+                    </div>
+
+                    {/* Buttons */}
+                    <div className="flex items-center justify-end">
+                        <FilledButton className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg"
+                            onClick={() => updateHandler(new CommonRevisionHandler(instruction, tooltip, icon))}>
+                            Save
+                        </FilledButton>
+                    </div>
+                </div>
+            );
+        }
+        return Root;
+    }
     serialize(): string {
         return JSON.stringify({
             implType: this.implType,
@@ -204,38 +391,6 @@ export class CommonRevisionHandler extends InputHandler {
     }
 }
 
-// Define GrammarCheckingHandler class
-export class GrammarCheckingHandler extends InputHandler {
-    constructor() {
-        super('grammarChecking', InputHandlerTypes.Revision);
-        this.iconNode = <FaSpellCheck size={20} className="ml-[-2px]" />;
-        this.shortcutKeyCallback = (e: React.KeyboardEvent) => e.key === 'g' && (e.metaKey || e.ctrlKey);
-    }
-
-    tooltip(lang: string): string {
-        if (lang.startsWith("zh")) {
-            return "检查并修正可能存在的语法问题";
-        } else {
-            return "Correct potential grammar issues";
-        }
-    }
-
-    instruction(): string {
-        return "Correct potential grammar issues.";
-    }
-
-    serialize(): string {
-        return JSON.stringify({
-            implType: this.implType,
-            type: this.type
-        });
-    }
-
-    static deserialize(): GrammarCheckingHandler {
-        return new GrammarCheckingHandler();
-    }
-}
-
 // Register all InputHandler subclasses
 inputHandlerHub.registerHandler('translation', TranslationHandler.deserialize);
 inputHandlerHub.registerHandler('respGeneration', RespGenerationHandler.deserialize);
@@ -243,7 +398,7 @@ inputHandlerHub.registerHandler('grammarChecking', GrammarCheckingHandler.deseri
 inputHandlerHub.registerHandler('commonGeneration', CommonGenerationHandler.deserialize);
 inputHandlerHub.registerHandler('commonRevision', CommonRevisionHandler.deserialize);
 
-export function InputHandlerCreator({
+export function CustomInputHandlerCreator({
     cancelCallback,
     inputHandlerAdded
 }: {
@@ -257,7 +412,7 @@ export function InputHandlerCreator({
 
     return (
         <>
-            <div className="fixed inset-0 bg-black opacity-50 z-40" onClick={cancelCallback}></div>
+            <Overlay onClick={cancelCallback} />
             <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-lg shadow-lg z-50">
                 {/* type selector */}
                 <h2 className="text-2xl font-bold mb-4">Custom Instruction</h2>
@@ -311,19 +466,18 @@ export function InputHandlerCreator({
                 </div>
                 {/* add button */}
                 <div className="flex items-center justify-end">
-                    <button className="text-gray-400 font-bold py-2 px-4 rounded-lg bg-transparent mr-2" type="button" onClick={cancelCallback}>
+                    <TransparentButton className="mr-2" onClick={cancelCallback}>
                         Cancel
-                    </button>
-                    <button className="bg-black hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg" type="button"
-                        onClick={() => {
-                            if (type === InputHandlerTypes.Generation) {
-                                inputHandlerAdded(new CommonGenerationHandler(instruction, tooltip, icon));
-                            } else {
-                                inputHandlerAdded(new CommonRevisionHandler(instruction, tooltip, icon));
-                            }
-                        }}>
+                    </TransparentButton>
+                    <FilledButton onClick={() => {
+                        if (type === InputHandlerTypes.Generation) {
+                            inputHandlerAdded(new CommonGenerationHandler(instruction, tooltip, icon));
+                        } else {
+                            inputHandlerAdded(new CommonRevisionHandler(instruction, tooltip, icon));
+                        }
+                    }}>
                         Add
-                    </button>
+                    </FilledButton>
                 </div>
             </div>
         </>

@@ -15,12 +15,13 @@ import Switch from "react-switch";
 import { IMediaRecorder } from "extendable-media-recorder";
 import { Tooltip } from "react-tooltip";
 import { FiPlus } from "react-icons/fi";
-import { addInputHandlerToLocalStorage } from "../lib/chat";
+import { addInputHandlerToLocalStorage, updateInputHandlerInLocalStorage } from "../lib/chat";
 import {
     InputHandler,
     InputHandlerTypes,
-    InputHandlerCreator
+    CustomInputHandlerCreator
 } from "./input-handlers";
+import { Overlay } from "@/app/ui-utils/components/overlay";
 
 export async function reviseMessage(
     messageToRevise: string,
@@ -166,6 +167,7 @@ export type MessageInputState =
     | { type: 'init' }
     | { type: 'normal'; message: Message; fromRevision: boolean }
     | { type: 'addingCustomInputHandler', previousState: MessageInputState }
+    | { type: 'settingsPanel'; handlerIndex: number; previousState: MessageInputState }
     | { type: 'revising'; message: Message; revisingIndex: number; }
     | { type: 'waitingApproval'; message: Message; revisedMsg: Message; revisionInstruction: string; };
 
@@ -251,14 +253,35 @@ export function MessageInput({
         }
         setCompState(compState.previousState);
     }
+    function startUpdatingInputHandler(handlerIndex: number) {
+        if (!isNormal) {
+            return;
+        }
+        setCompState({ type: 'settingsPanel', handlerIndex, previousState: compState });
+    }
+    function cancelUpdatingInputHandler() {
+        if (compState.type !== 'settingsPanel') {
+            return;
+        }
+        setCompState(compState.previousState);
+    }
     function inputHandlerAdded(handler: InputHandler) {
         if (compState.type !== 'addingCustomInputHandler') {
             return;
         }
         addInputHandlerToLocalStorage(chatID, [handler]);
         setCompState(compState.previousState);
-        inputHandlers.push(handler);
+        inputHandlers.push(handler); // TODO need to find out why this would work...
     }
+    function updateInputHandler(handler: InputHandler) {
+        if (compState.type !== 'settingsPanel') {
+            return;
+        }
+        updateInputHandlerInLocalStorage(chatID, compState.handlerIndex, handler);
+        inputHandlers[compState.handlerIndex] = handler;
+        setCompState(compState.previousState);
+    }
+
     function calculateTextAreaHeight(): number {
         // TODO
         // if (textAreaRef.current) {
@@ -292,6 +315,8 @@ export function MessageInput({
                             </IconCircleWrapper>
                         </div>
                     }
+                    const SettingsPanel = h.settingsPanel();
+                    const configurable = SettingsPanel !== undefined;
                     // icons to display in normal status
                     return <div key={index}>
                         <div id={`input-handler-${index}`}>
@@ -299,7 +324,6 @@ export function MessageInput({
                                 width={35}
                                 height={35}
                                 onClick={() => {
-                                    console.log(`startRevising ${index}`); // TODO remove
                                     const ii = index;
                                     startRevising(ii);
                                 }}
@@ -309,11 +333,16 @@ export function MessageInput({
                         </div>
                         <Tooltip anchorSelect={`#input-handler-${index}`} clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                             <span>{h.tooltip(navigator.language)}</span>
-                            <div className="flex flex-row justify-end items-center mt-3">
-                                {/* <div className="text-white text-sm mr-1">Settings</div> */}
-                                <LuSettings className="text-white cursor-pointer" />
-                            </div>
+                            {configurable && <div className="flex flex-row justify-end items-center mt-3">
+                                <LuSettings className="text-white cursor-pointer" onClick={() => startUpdatingInputHandler(index)} />
+                            </div>}
                         </Tooltip>
+                        {compState.type === 'settingsPanel' && compState.handlerIndex === index && configurable &&
+                            <>
+                                <Overlay onClick={cancelUpdatingInputHandler} />
+                                <SettingsPanel updateHandler={updateInputHandler} />
+                            </>
+                        }
                     </div>
                 })}
                 <div id="input-handler-creator-entry">
@@ -324,7 +353,7 @@ export function MessageInput({
                 <Tooltip anchorSelect="#input-handler-creator-entry" clickable delayShow={300} delayHide={0} style={{ borderRadius: '0.75rem' }}>
                     <span>Add your custom instruction</span>
                 </Tooltip>
-                {compState.type === 'addingCustomInputHandler' && <InputHandlerCreator cancelCallback={cancelAddingCustomInputHandler} inputHandlerAdded={inputHandlerAdded} />}
+                {compState.type === 'addingCustomInputHandler' && <CustomInputHandlerCreator cancelCallback={cancelAddingCustomInputHandler} inputHandlerAdded={inputHandlerAdded} />}
             </div >
         </div>
         {/* revision DiffView pop-up */}
