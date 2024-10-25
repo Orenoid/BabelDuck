@@ -9,6 +9,7 @@ import { FaPlus } from "react-icons/fa";
 import { SystemMessage } from "./message";
 import { MdDelete, MdModeEdit } from "react-icons/md";
 import { SiTheconversation } from "react-icons/si";
+import { useTranslation } from "react-i18next";
 
 
 interface ChatSelectionListProps {
@@ -49,9 +50,10 @@ export function ChatSelectionList({ chatSelectionListLoader, className = "" }: C
 export function NewChat({ addNewChat: addNewChat2, className = "" }: {
     addNewChat: AddNewChat, className?: string
 }) {
+    const { t } = useTranslation();
     const dispatch = useAppDispatch()
     const handleClick = () => {
-        const chatSelection = addNewChat2("New Chat", [
+        const chatSelection = addNewChat2(t('Untitled Chat'), [
             new SystemMessage("You're a helpful assistant.")
         ])
         dispatch(addNewChat(chatSelection.chatSelection))
@@ -60,7 +62,7 @@ export function NewChat({ addNewChat: addNewChat2, className = "" }: {
     return <div className={`flex flex-row py-2 pl-3 items-center cursor-pointer rounded-md hover:bg-gray-200 ${className}`}
         onClick={handleClick}>
         <FaPlus className="mr-3" />
-        <button>New Chat</button>
+        <span>{t('New Chat')}</span>
     </div>
 }
 
