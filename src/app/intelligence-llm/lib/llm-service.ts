@@ -1,6 +1,6 @@
-import { i18nText } from "@/app/i18n/i18n"
+import { i18nText } from "@/app/i18n/i18n";
 import { generateUUID } from "@/app/lib/uuid";
-import { createOpenAI } from "@ai-sdk/openai"
+import { createOpenAI } from "@ai-sdk/openai";
 import { convertToCoreMessages, streamText } from 'ai';
 
 // ================================ business logic ================================

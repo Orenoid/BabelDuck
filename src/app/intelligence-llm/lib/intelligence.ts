@@ -1,7 +1,7 @@
 import { i18nText } from "@/app/i18n/i18n"
 import { isOpenAILikeMessage, Message } from "@/app/chat/lib/message"
 import { BabelDuckMessage, FreeTrialMessage, SpecialRoles, StreamingTextMessage } from "@/app/chat/components/message"
-import { getCustomLLMServiceSettings, getLLMServiceSettingsRecord, OpenAICompatibleAPIService, OpenAIService, OpenAISettings } from "./llm-service"
+import { getCustomLLMServiceSettings, getLLMServiceSettingsRecord, OpenAICompatibleAPIService, OpenAIService, OpenAISettings, SiliconFlowService } from "./llm-service"
 import { IdentifiedTextMessage, NextStepTutorialMessage } from "@/app/chat/components/tutorial-message"
 import { TutorialStateIDs } from "@/app/chat/components/tutorial-redux"
 import { FreeTrialChatError, InvalidModelSettingsError } from "@/app/error/error"
@@ -101,35 +101,28 @@ export class FreeTrialChatIntelligence extends ChatIntelligenceBase {
     completeChat(messageList: Message[]): Message[] {
         // Check if there's already a FreeTrialMessage in the message list
         const hasFreeTrialMessage = messageList.some(msg => msg instanceof FreeTrialMessage)
+        const model = process.env.NEXT_PUBLIC_FREE_TRIAL_MODEL
+        if (!model) {
+            throw new FreeTrialChatError('Free trial model is not set')
+        }
         async function* genFunc() {
-            // Fetch the stream from the server
-            const response = await fetch('/api/chat/quick-trial', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messageList: messageList
-                        .filter((msg) => msg.includedInChatCompletion)
-                        .filter((msg) => isOpenAILikeMessage(msg))
-                        .map((msg) => (msg.toOpenAIMessage()))
-                }),
-            });
-            if (!response.ok) {
-                throw new FreeTrialChatError(`chat completion error: ${response.statusText}, ${await response.text()}`);
-            }
-            if (!response.body) {
-                throw new FreeTrialChatError('No response body');
+            // Fetch token from API
+            const response = await fetch('/api/temp_token');
+            const data = await response.json();
+            if (!data.token) {
+                throw new FreeTrialChatError('Failed to get token');
             }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                yield decoder.decode(value);
+            const siliconFlowService = new SiliconFlowService(data.token, process.env.NEXT_PUBLIC_FREE_TRIAL_MODEL!)
+            const { textStream } = await siliconFlowService.chatCompletionInStream(
+                messageList.filter((msg) => msg.includedInChatCompletion)
+                    .filter((msg) => isOpenAILikeMessage(msg))
+                    .map((msg) => (msg.toOpenAIMessage()))
+            )
+            for await (const value of textStream) {
+                yield value
             }
+            return
         }
         const gen = genFunc()
         return hasFreeTrialMessage
