@@ -168,7 +168,9 @@ i18n
                     'tooltip.approveButton': 'Now, click the "Approve" button to accept the AI\'s suggestion.',
                     'tooltip.approveRejectButtons': 'If you\'re satisfied with the result, click "Approve" or press Enter to insert it into the input box.',
                     'tooltip.approveRejectButtons2': 'If not, click "Reject" or press Backspace to cancel this modification. (Currently disabled in tutorial mode)',
-                    'tooltip.followUpDiscussion': 'If you\'re not satisfied with AI\'s response or have other questions, you can ask follow-up questions or discuss further. Click now to see how it works.'
+                    'tooltip.followUpDiscussion': 'If you\'re not satisfied with AI\'s response or have other questions, you can ask follow-up questions or discuss further. Click now to see how it works.',
+                    'webSpeech.serviceTip': 'This service uses your browser\'s built-in text-to-speech engine which runs locally. Available languages and voice quality may vary depending on your browser and operating system.',
+                    'azureTTS.serviceTip': 'This service requires an Azure subscription key. You\'ll need to register for an Azure account and create a Speech Service resource to get the key. Azure TTS provides high-quality voices in many languages and supports neural text-to-speech.'
                 }
             },
             zh: {
@@ -218,7 +220,7 @@ i18n
                     'baseURL': '基础 URL',
                     'Chat Model': '对话模型服务',
                     'Add Service': '添加服务',
-                    'Speech Synthesis Service': '语音合成服务',
+                    'Speech Synthesis Service': '文本转语音服务',
                     'translateTooltip': '让 AI 将输入框中的消息翻译为 {{targetLanguage}}',
                     'generateResponseTooltip': '让 AI 帮忙回复当前消息（建议在需要回答问题时使用）',
                     'grammarCheckTooltip': '让 AI 检查并修复潜在的语法问题',
@@ -262,7 +264,7 @@ i18n
                     'Language': '语言',
                     'Voice': '声音',
                     'Enter your Azure subscription key': '请输入 Azure 订阅密钥',
-                    'freeTrial.ttsServiceTip': '仅供新用户快速体验，速度与使用频率都有限制，如需更好的体验，可切换其他语音合成服务。',
+                    'freeTrial.ttsServiceTip': '仅供新用户快速体验，速度与使用频率都有限制，如需更好的体验，可切换其他文本转语音服务。',
                     'speechSvc.webSpeech': '浏览器内置 TTS',
                     'speechSvc.azure': 'Azure TTS',
                     'speechSvc.freeTrial': '快速体验',
@@ -319,7 +321,9 @@ i18n
                     'tooltip.approveButton': '现在，点击 「采纳」 按钮，采纳 AI 提供的结果。',
                     'tooltip.approveRejectButtons': '如果你对快捷指令返回的结果满意，可以点击"采纳"按钮，或按 Enter 键，将结果填入到输入框中。',
                     'tooltip.approveRejectButtons2': '如果不想采纳，则点击"取消"按钮，或按 Backspace 键，取消本次修改。（当前在教程模式中，暂时不可操作）',
-                    'tooltip.followUpDiscussion': '如果你对 AI 返回的结果不满意或者有其他疑问，可以进一步追问或讨论。现在点击一下看看效果。'
+                    'tooltip.followUpDiscussion': '如果你对 AI 返回的结果不满意或者有其他疑问，可以进一步追问或讨论。现在点击一下看看效果。',
+                    'webSpeech.serviceTip': '该服务使用浏览器内置的本地文本转语音引擎，可用的语言和语音质量可能因浏览器和操作系统而异。',
+                    'azureTTS.serviceTip': '该服务需要 Azure 订阅密钥。你需要注册 Azure 账号并创建语音服务资源来获取密钥。Azure TTS 提供多种语言的高质量语音，支持神经网络文本转语音。'
                 }
             },
             // the Japanese translation is generated using LLM, PRs are welcomed to improve it.
@@ -388,7 +392,7 @@ i18n
                     'lang.en': '英語',
                     'lang.zh': '中国語',
                     'lang.ja': '日本語',
-                    'practiceLanguageHint': '���れはショートカット設定用です。後で変更できます',
+                    'practiceLanguageHint': 'れはショートカット設定用です。後で変更できます',
                     'betaWarning': 'このアプリケーションは現在ベータテスト中です。重要なデータを保存しないでください。',
                     'Approve': '承認',
                     'Reject': '拒否',
@@ -472,7 +476,9 @@ i18n
                     'tooltip.approveButton': '「承認」ボタンをクリックして、AIの提案を採用しましょう。',
                     'tooltip.approveRejectButtons': 'ショートカットコマンドの結果に満足した場合は、「承認」ボタンをクリックするか、Enterキーを押して、結果を入力ボックスに反映させることができます。',
                     'tooltip.approveRejectButtons2': '採用したくない場合は、「キャンセル」ボタンをクリックするか、Backspaceキーを押して、この変更をキャンセルします。（現在はチュートリアルモードのため、操作できません）',
-                    'tooltip.followUpDiscussion': 'AIの返答に満足できない場合や他に質問がある場合は、さらに質問や議論を続けることができます。クリックして効果を確認してみましょう。'
+                    'tooltip.followUpDiscussion': 'AIの返答に満足できない場合や他に質問がある場合は、さらに質問や議論を続けることができます。クリックして効果を確認してみましょう。',
+                    'webSpeech.serviceTip': 'このサービスは、ブラウザに内蔵されているローカルの音声合成エンジンを使用します。利用可能な言語と音声品質は、ブラウザやオペレーティングシステムによって異なる場合があります。',
+                    'azureTTS.serviceTip': 'このサービスには Azure サブスクリプションキーが必要です。Azure アカウントを登録し、Speech Service リソースを作成してキーを取得する必要があります。Azure TTS は多言語の高品質な音声を提供し、ニューラル音声合成をサポートしています。'
                 }
             }
         }

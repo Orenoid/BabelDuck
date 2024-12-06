@@ -604,6 +604,11 @@ export function WebSpeechSettingsPanel({
     }
 
     return <div className="flex flex-col pl-8">
+        <div className="flex flex-row items-start mt-2 mb-4 text-sm text-gray-500">
+            <IoMdInformationCircleOutline size={15} className="mr-2 mt-1 flex-shrink-0" />
+            <span>{t('webSpeech.serviceTip')}</span>
+        </div>
+
         {/* Language selector */}
         <div className="flex flex-row items-center justify-between mb-4">
             <span className="text-gray-700 font-bold">{t('Speech Language')}</span>
@@ -677,6 +682,11 @@ function AzureTTSSettingsPanel({
 
     return (
         <div className="flex flex-col pl-8">
+            <div className="flex flex-row items-start mt-2 mb-4 text-sm text-gray-500">
+                <IoMdInformationCircleOutline size={15} className="mr-2 mt-1 flex-shrink-0" />
+                <span>{t('azureTTS.serviceTip')}</span>
+            </div>
+
             {/* Azure Region */}
             <div className="flex flex-row items-center justify-between mb-4">
                 <span className="text-gray-700 font-bold">{t('Azure Region')}</span>
