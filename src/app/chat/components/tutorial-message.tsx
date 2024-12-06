@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Message } from "../lib/message";
-import { RoleV2, SpecialRoles, TextMessage } from "./message";
+import { Role, SpecialRoles, TextMessage } from "./message";
 // import { PiStudentFill } from "react-icons/pi";
 import { TmpFilledButton } from "@/app/ui-utils/components/button";
 import { useAppSelector, useAppDispatch } from "@/app/hooks";
@@ -60,7 +60,7 @@ function NonInteractiveTutorialMessageComponent({ message: unTypedMsg, className
     }, [])
 
     return <div className={`flex flex-row ${className}`}>
-        <RoleV2 className="mr-3" name={message.role} />
+        <Role className="mr-3" name={message.role} />
         <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 flex flex-col ${className}`}>
             <div className="mb-2" dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }} />
             <div ref={scrollRef} />
@@ -155,7 +155,7 @@ function NextStepTutorialMessageComponent({ message: unTypedMsg, className }: { 
     const ContentNode = message.contentNode()
 
     return <div className={`flex flex-row ${className}`}>
-        <RoleV2 className="mr-3" name={message.role} />
+        <Role className="mr-3" name={message.role} />
         <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 flex flex-col ${className}`}>
             <ContentNode />
             {tutorialState.stateID === message.currentStateID &&
@@ -185,21 +185,21 @@ function IndicateClickOnTranslationMsgComponent({ className }: { className?: str
     return <div className="flex flex-col">
         {/* tutorial message 2-1*/}
         <div className={`flex flex-row ${className}`}>
-            <RoleV2 className="mr-3" name={SpecialRoles.TUTORIAL} />
+            <Role className="mr-3" name={SpecialRoles.TUTORIAL} />
             <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 flex flex-col ${className}`}>
                 <div className="mb-2" dangerouslySetInnerHTML={{ __html: tutorialMsg1.replace(/\n/g, '<br />') }} />
             </div>
         </div>
         {/* assistant message */}
         <div className="flex flex-row">
-            <RoleV2 className="mr-3" name={SpecialRoles.ASSISTANT} />
+            <Role className="mr-3" name={SpecialRoles.ASSISTANT} />
             <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 flex flex-col ${className}`}>
                 <div className="mb-2" dangerouslySetInnerHTML={{ __html: aiMsg.replace(/\n/g, '<br />') }} />
             </div>
         </div>
         {/* tutorial message 2-2 */}
         <div className="flex flex-row mb-8">
-            <RoleV2 className="mr-3" name={SpecialRoles.TUTORIAL} />
+            <Role className="mr-3" name={SpecialRoles.TUTORIAL} />
             <div className={`bg-[#F6F5F5] rounded-xl w-fit max-w-[80%] p-4 flex flex-col ${className}`}>
                 <div className="mb-2" dangerouslySetInnerHTML={{ __html: content3.replace(/\n/g, '<br />') }} />
                 <div className="flex flex-row items-end">

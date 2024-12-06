@@ -22,8 +22,9 @@ import { GrSystem } from "react-icons/gr";
 import { InvalidModelSettingsError } from "@/app/error/error";
 import { FreeTrialChatError } from "@/app/error/error";
 import toast from "react-hot-toast";
+import { TTSTokenManager } from '../lib/tts-token-manager';
 
-export function RoleV2({ name, className }: { name: string, className?: string }) {
+export function Role({ name, className }: { name: string, className?: string }) {
     const tooltipId = `role-tooltip-${Math.random().toString(36).substring(2, 11)}`;
 
     return (
@@ -133,7 +134,7 @@ export class SystemMessage extends Message {
             }
 
             return <div className={`flex flex-row w-fit max-w-[80%] ${className}`}>
-                <RoleV2 className="mr-2" name={this.role} />
+                <Role className="mr-2" name={this.role} />
                 <div className={`flex flex-col w-fit`} onMouseEnter={toggleShowMore} onMouseLeave={toggleShowMore}>
                     {!isEditing &&
                         <div className="bg-[#F6F5F5] rounded-xl w-fit p-4 flex flex-col">
@@ -328,18 +329,15 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
             }
         } else if (serviceId === 'freeTrial') {
             try {
-                const subscriptionKey = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
                 const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION;
-                // Q: Why expose the key to the frontend?
-                // A: Although we can easily hide it in the backend, however this might become a performance bottleneck when the product is published.
-                //    Therefore, the free trial TTS logic is deliberately implemented purely on client side. And by irregularly changing the keys, to some extent, it prevents abuse.
-                //    When the peak time is over, move the free trial feature to backend (or simply remove it).
-                // Anyway, it's up to you whether to provide the free trial tts feature. So long as you don't set these two variables, the free trial feature will be disabled.
-                if (!subscriptionKey || !region) {
-                    throw new Error('Azure Speech subscription key or region not found');
+                if (!region) {
+                    throw new Error('Azure Speech region not found');
                 }
 
-                const speechConfig = sdk.SpeechConfig.fromSubscription(subscriptionKey, region);
+                // 使用 TokenManager 获取 token
+                const token = await TTSTokenManager.getInstance().getToken();
+                
+                const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(token, region);
                 speechConfig.speechRecognitionLanguage = 'en-US';
                 speechConfig.speechSynthesisVoiceName = 'en-US-JennyMultilingualNeural';
 
@@ -398,7 +396,7 @@ export function ControlledTextMessageComponent({ messageIns, compState, setCompS
     }
 
     return <div className={`flex flex-row w-fit max-w-[80%] ${alignRight ? 'self-end' : ''} ${className}`}>
-        {showRole && <RoleV2 className="mr-2" name={messageIns.role} />}
+        {showRole && <Role className="mr-2" name={messageIns.role} />}
         <div className={`flex flex-col w-fit`} onMouseEnter={() => { setShowMore(true) }} onMouseLeave={() => { setShowMore(false) }}>
             {!isEditing && <MessageContent content={compState.content} />}
             {isEditing &&
@@ -747,19 +745,24 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
                         }
                     } else if (serviceId === 'freeTrial') {
                         try {
-                            const subscriptionKey = process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY;
                             const region = process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION;
-                            if (!subscriptionKey || !region) {
-                                throw new Error('Azure Speech subscription key or region not found');
+                            if (!region) {
+                                throw new Error('Azure Speech region not found');
                             }
-                            const speechConfig = sdk.SpeechConfig.fromSubscription(subscriptionKey, region);
+
+                            // 使用 TokenManager 获取 token
+                            const token = await TTSTokenManager.getInstance().getToken();
+                            
+                            const speechConfig = sdk.SpeechConfig.fromAuthorizationToken(token, region);
                             speechConfig.speechRecognitionLanguage = 'en-US';
                             speechConfig.speechSynthesisVoiceName = 'en-US-JennyMultilingualNeural';
+
                             const player = new sdk.SpeakerAudioDestination();
-                            azurePlayer.current = player
+                            azurePlayer.current = player;
                             const audioConfig = sdk.AudioConfig.fromSpeakerOutput(player);
                             const synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
-                            azureSynthesizer.current = synthesizer
+                            azureSynthesizer.current = synthesizer;
+
                             if (isFirstUtt) {
                                 setMsgState({ ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true })
                                 stateRef.current = { ...stateRef.current as { type: 'streaming', streamingContent: string, playing: boolean }, playing: true }
@@ -836,7 +839,7 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
             {/* if not finished, render as streaming message */}
             {!finished &&
                 <div className={`flex flex-row w-fit max-w-[80%] ${alignRight ? 'self-end' : ''} ${className}`}>
-                    {showRole && <RoleV2 className="mr-2" name={message.role} />}
+                    {showRole && <Role className="mr-2" name={message.role} />}
                     <div className={`flex flex-col w-fit ${className}`}>
                         {/* message content */}
                         <div className={`bg-[#F6F5F5] rounded-lg w-fit p-2`}>
@@ -879,7 +882,7 @@ export class RecommendedRespMessage extends Message {
     component() {
         const Root = ({ className }: { className?: string }) => {
             return <div className={`flex flex-row w-fit max-w-[80%] ${className}`}>
-                <RoleV2 className="mr-2" name={this.role} />
+                <Role className="mr-2" name={this.role} />
                 <div className={`flex flex-col w-fit ${className}`}>
                     <div className={`bg-[#F6F5F5] rounded-lg w-fit p-2 ${className}`}>
                         <I18nText i18nText={{ key: 'The recommended response is as follows' }} />

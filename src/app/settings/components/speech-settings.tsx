@@ -1,6 +1,6 @@
 
 export function getSelectedSpeechSvcID() {
-    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION);
+    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_ENABLE_FREE_TRIAL_TTS && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION);
     const defaultSvcId = freeTrialSvcEnabled ? 'freeTrial' : 'webSpeech';
     const selectedSvcId = localStorage.getItem('selectedSpeechServiceId') || defaultSvcId;
     if (selectedSvcId === 'freeTrial' && !freeTrialSvcEnabled) {

@@ -479,7 +479,7 @@ export function SpeechSettings({ className = "" }: { className?: string }) {
         { id: 'azure', name: { key: 'speechSvc.azure' } },
     ]
 
-    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_AZURE_SPEECH_KEY && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION)
+    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_ENABLE_FREE_TRIAL_TTS && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION)
     if (freeTrialSvcEnabled) {
         availableSpeechSvcs.unshift({ id: 'freeTrial', name: { key: 'speechSvc.freeTrial' } })
     }
