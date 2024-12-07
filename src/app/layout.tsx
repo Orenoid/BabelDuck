@@ -5,6 +5,7 @@ import "./globals.css";
 import Providers from "./providers";
 import dynamic from 'next/dynamic';
 import { PrimeReactProvider } from 'primereact/api';
+import { ClientInit } from './client-init';
 
 
 const geistSans = localFont({
@@ -28,11 +29,13 @@ export const metadata: Metadata = {
   }
 };
 
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
   return (
     <html lang="en">
       <body
@@ -40,6 +43,7 @@ export default function RootLayout({
       >
         <I18nProvider>
           <PrimeReactProvider>
+            <ClientInit />
             <Providers>{children}</Providers>
           </PrimeReactProvider>
         </I18nProvider>
