@@ -1,32 +1,29 @@
 "use client"
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import { Toaster } from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+import { FaGithub } from "react-icons/fa";
+import { IoMdInformationCircleOutline } from "react-icons/io";
 import { LuInfo } from "react-icons/lu";
+import Switch from "react-switch";
 import { Chat } from "./chat/components/chat";
 import { ChatSelectionList, NewChat } from "./chat/components/chatList";
 import { addNewChat, addNewChatWithoutSettingCurrentChat } from "./chat/components/chatList-redux";
-import { AddNewChat, loadChatMessages, loadChatSelectionList } from "./chat/lib/chat";
-import { defaultGlobalChatSettings } from "./settings/lib/settings";
-import { setGlobalChatSettings } from "./settings/lib/settings";
-import { useAppDispatch, useAppSelector } from "./hooks";
-import { SettingsEntry, SpeechSettings } from "./settings/components/settings";
-import { useTranslation } from "react-i18next";
-import { SemiTransparentOverlay } from "./ui-utils/components/overlay";
-import { useState, useEffect } from 'react';
-import i18n from './i18n/i18n';
-import { FilledButton } from "./ui-utils/components/button";
-import { DropdownMenu, DropdownMenuEntry } from "./ui-utils/components/DropdownMenu";
-import { TransparentOverlay } from "./ui-utils/components/overlay";
-import { IoMdInformationCircleOutline } from "react-icons/io";
 import { GrammarCheckingHandler, RespGenerationHandler, TranscriptionImprovementHandler, TranslationHandler } from "./chat/components/input-handlers";
-import { DisableHandlerDecorator } from "./chat/components/tutorial-input-handlers";
-import { TutorialTranslationHandler } from "./chat/components/tutorial-input-handlers";
-import Image from 'next/image';
-import { FaGithub } from "react-icons/fa";
-import { TutorialChatIntelligence } from "./intelligence-llm/lib/intelligence";
+import { DisableHandlerDecorator, TutorialTranslationHandler } from "./chat/components/tutorial-input-handlers";
 import { NextStepTutorialMessage } from "./chat/components/tutorial-message";
 import { TutorialStateIDs } from "./chat/components/tutorial-redux";
-import { Toaster } from "react-hot-toast";
+import { AddNewChat, loadChatMessages, loadChatSelectionList } from "./chat/lib/chat";
 import { chatTemplates } from "./chat/lib/template";
-
+import { useAppDispatch, useAppSelector } from "./hooks";
+import i18n from './i18n/i18n';
+import { TutorialChatIntelligence } from "./intelligence-llm/lib/intelligence";
+import { SettingsEntry, SpeechSettings } from "./settings/components/settings";
+import { defaultGlobalChatSettings, setGlobalChatSettings } from "./settings/lib/settings";
+import { FilledButton } from "./ui-utils/components/button";
+import { DropdownMenu, DropdownMenuEntry } from "./ui-utils/components/DropdownMenu";
+import { SemiTransparentOverlay, TransparentOverlay } from "./ui-utils/components/overlay";
 function AboutPanel({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
 
@@ -111,6 +108,7 @@ function InitializationPanel({ onClose }: { onClose: () => void }) {
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [selectedPracticeLanguage, setSelectedPracticeLanguage] = useState('en');
   const [showPracticeDropdown, setShowPracticeDropdown] = useState(false);
+  const [autoPlayAudio, setAutoPlayAudio] = useState(false);
 
   // List of supported languages
   const supportedLanguages = ['en', 'zh', 'ja'] as const;
@@ -146,6 +144,7 @@ function InitializationPanel({ onClose }: { onClose: () => void }) {
     localStorage.setItem('selectedLanguage', selectedLanguage);
     setGlobalChatSettings({
       ...defaultGlobalChatSettings,
+      autoPlayAudio: autoPlayAudio,
       inputHandlers: defaultHandlers.map((handler) => ({ handler, display: true }))
     });
     // add template chats
@@ -268,7 +267,22 @@ function InitializationPanel({ onClose }: { onClose: () => void }) {
             </div>
 
             {/* TTS settings */}
-            <SpeechSettings className="mb-8" />
+            <SpeechSettings className="mb-4" />
+
+            {/* Auto play audio settings */}
+            <div className="flex flex-col mb-8">
+              <div className="flex flex-row items-center justify-between">
+                <span className="text-gray-700 font-bold">{t('Auto Play Audio')}</span>
+                <Switch checked={autoPlayAudio}
+                  width={28} height={17} uncheckedIcon={false} checkedIcon={false} onColor="#000000"
+                  onChange={(checked) => { setAutoPlayAudio(checked) }} />
+              </div>
+              {/* Add description */}
+              <div className="flex flex-row items-start">
+                <IoMdInformationCircleOutline size={16} className="text-gray-400 mr-1 mt-1" />
+                <span className="text-gray-400 text-sm">{t('autoPlayAudioDescription')}</span>
+              </div>
+            </div>
 
             {/* Confirm button */}
             <div className="flex justify-end">

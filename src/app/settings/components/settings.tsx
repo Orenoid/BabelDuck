@@ -460,11 +460,18 @@ function CommonChatSettings({ chatSettings, updateChatSettings, className = "" }
             ))}
         </div>
         {/* auto play audio settings */}
-        <div className="flex flex-row items-center justify-between mb-8">
-            <span className="text-gray-700 font-bold">{t('Auto Play Audio')}</span>
-            <Switch checked={chatSettings.autoPlayAudio}
-                width={28} height={17} uncheckedIcon={false} checkedIcon={false} onColor="#000000"
-                onChange={(checked) => { updateChatSettings({ ...chatSettings, autoPlayAudio: checked }) }} />
+        <div className="flex flex-col mb-8">
+            <div className="flex flex-row items-center justify-between">
+                <span className="text-gray-700 font-bold">{t('Auto Play Audio')}</span>
+                <Switch checked={chatSettings.autoPlayAudio}
+                    width={28} height={17} uncheckedIcon={false} checkedIcon={false} onColor="#000000"
+                    onChange={(checked) => { updateChatSettings({ ...chatSettings, autoPlayAudio: checked }) }} />
+            </div>
+            {/* Add description */}
+            <div className="flex flex-row items-start">
+                <IoMdInformationCircleOutline size={16} className="text-gray-400 mr-1 mt-1" />
+                <span className="text-gray-400 text-sm">{t('autoPlayAudioDescription')}</span>
+            </div>
         </div>
     </div>
 }
