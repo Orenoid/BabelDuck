@@ -107,7 +107,11 @@ export class FreeTrialChatIntelligence extends ChatIntelligenceBase {
         }
         async function* genFunc() {
             // Fetch token from API
-            const response = await fetch('/api/temp_token');
+            const tokenEndpoint = process.env.NEXT_PUBLIC_TEMP_TOKEN_API;
+            if (!tokenEndpoint) {
+                throw new FreeTrialChatError('Token endpoint is not set');
+            }
+            const response = await fetch(tokenEndpoint);
             const data = await response.json();
             if (!data.token) {
                 throw new FreeTrialChatError('Failed to get token');
