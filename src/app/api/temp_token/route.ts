@@ -12,7 +12,7 @@ export async function GET() {
                 { status: 404 }
             );
         }
-        return NextResponse.json({ token });
+        return NextResponse.json({ token: token, expires: 300 });
     } catch (error) {
         console.error("Error getting token:", error);
         return NextResponse.json(
