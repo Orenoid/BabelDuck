@@ -667,11 +667,11 @@ function TextInput(
                         enableVoiceMode()
                     }, 1000)
                 }
-                if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault();
-                    handleSend(msg, { generateAssistantMsg: false });
-                    return;
-                }
+                // if (e.key === 'Enter' && e.ctrlKey) {
+                //     e.preventDefault();
+                //     handleSend(msg, { generateAssistantMsg: false });
+                //     return;
+                // }
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     handleSend(msg);
@@ -681,8 +681,8 @@ function TextInput(
         {/* Bottom Bar */}
         <div className="flex flex-row items-center justify-between">
             {/* current message role */}
-            <div className="relative flex flex-row rounded-full hover:bg-gray-300">
-                <div className="flex flex-row p-1 px-3 cursor-pointer" onClick={() => setShowRoleMenu(!showRoleMenu)}>
+            <div className="relative flex flex-row rounded-full hover:bg-gray-300 invisible">
+                <div className="flex flex-row p-1 px-3" onClick={() => {}}>
                     <LuUserCog2 className="mr-2" size={25} /> <span className="font-bold">{msg.role}</span>
                 </div>
                 {showRoleMenu && (
