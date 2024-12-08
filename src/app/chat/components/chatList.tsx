@@ -11,7 +11,7 @@ import { SiTheconversation } from "react-icons/si";
 import { TbPencil } from "react-icons/tb";
 import { AddNewChat, ChatSelectionListLoader, deleteChatData, getNextChatCounter, UpdateChatTitle } from "../lib/chat";
 import { unsetCurrentChatSettings } from "./chat-redux";
-import { SystemMessage } from "./message";
+import { HintMessage, SystemMessage } from "./message";
 import { addNewChat, deleteChat, setChatSelectionList, setCurrentChatID, updateChatTitle } from "./chatList-redux";
 
 
@@ -48,7 +48,6 @@ export function ChatSelectionList({ chatSelectionListLoader, className = "" }: {
 
 }
 
-const defaultSystemPrompt = "You are a friendly conversation partner. Please respond in a casual, conversational way. Keep your responses short and natural. Try to keep responses under 50 words. Avoid formal language and complex sentences. Speak like in everyday conversation. Use simple sentences and express one point at a time."
 
 export function NewChat({ className = "" }: {
     className?: string
@@ -60,7 +59,8 @@ export function NewChat({ className = "" }: {
         const counter = getNextChatCounter();
         const chatTitle = t('Chat {{number}}', { number: counter });
         const chatSelection = AddNewChat(chatTitle, [
-            new SystemMessage(defaultSystemPrompt),
+            new SystemMessage(t('systemPrompt')),
+            new HintMessage({key: 'systemPromptHint'})
         ]);
         dispatch(addNewChat(chatSelection.chatSelection));
         dispatch(unsetCurrentChatSettings()) // clear the state, let the effect hook in chat component to initialize the new chat settings TODO tech-debt: not a good solution
