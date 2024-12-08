@@ -618,7 +618,7 @@ const StreamingTextMessageComponent = ({ message: _message, messageID, updateMes
                         }
                     }
                 } catch (error) {
-                    console.error(error)
+                    console.error('Error with stack:', error, '\nStack:', error instanceof Error ? error.stack : 'N/A')
                     if (error instanceof FreeTrialChatError) {
                         toast.error(t('trialChatUnavailable'))
                     } else if (error instanceof InvalidModelSettingsError) {
