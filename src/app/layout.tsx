@@ -6,7 +6,7 @@ import Providers from "./providers";
 import dynamic from 'next/dynamic';
 import { PrimeReactProvider } from 'primereact/api';
 import { ClientInit } from './client-init';
-
+import { Analytics } from '@vercel/analytics/next';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -44,7 +44,10 @@ export default function RootLayout({
         <I18nProvider>
           <PrimeReactProvider>
             <ClientInit />
-            <Providers>{children}</Providers>
+            <Providers>
+              {children}
+              <Analytics />
+            </Providers>
           </PrimeReactProvider>
         </I18nProvider>
       </body>

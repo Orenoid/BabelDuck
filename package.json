@@ -11,6 +11,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^0.0.66",
     "@reduxjs/toolkit": "^2.2.7",
+    "@vercel/analytics": "^1.4.1",
     "ai": "^3.4.33",
     "diff": "^7.0.0",
     "extendable-media-recorder": "^9.2.13",
