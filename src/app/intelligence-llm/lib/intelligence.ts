@@ -111,21 +111,26 @@ export class FreeTrialChatIntelligence extends ChatIntelligenceBase {
             if (!tokenEndpoint) {
                 throw new FreeTrialChatError('Token endpoint is not set');
             }
-            const response = await fetch(tokenEndpoint);
-            const data = await response.json();
-            if (!data.token) {
+            try {
+                const response = await fetch(tokenEndpoint);
+                const data = await response.json();
+                if (!data.token) {
+                    throw new FreeTrialChatError('Failed to get token');
+                }
+                const siliconFlowService = new SiliconFlowService(data.token, process.env.NEXT_PUBLIC_FREE_TRIAL_MODEL!)
+                const { textStream } = await siliconFlowService.chatCompletionInStream(
+                    messageList.filter((msg) => msg.includedInChatCompletion)
+                        .filter((msg) => isOpenAILikeMessage(msg))
+                        .map((msg) => (msg.toOpenAIMessage()))
+                )
+                for await (const value of textStream) {
+                    yield value
+                }
+            } catch (error) {
+                console.error('Error with stack:', error, '\nStack:', error instanceof Error ? error.stack : 'N/A')
                 throw new FreeTrialChatError('Failed to get token');
             }
 
-            const siliconFlowService = new SiliconFlowService(data.token, process.env.NEXT_PUBLIC_FREE_TRIAL_MODEL!)
-            const { textStream } = await siliconFlowService.chatCompletionInStream(
-                messageList.filter((msg) => msg.includedInChatCompletion)
-                    .filter((msg) => isOpenAILikeMessage(msg))
-                    .map((msg) => (msg.toOpenAIMessage()))
-            )
-            for await (const value of textStream) {
-                yield value
-            }
             return
         }
         const gen = genFunc()

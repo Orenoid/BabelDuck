@@ -293,7 +293,7 @@ i18n
                     'Collapse': '折叠',
                     'voiceModeNotSupportedInTutorial': '教程模式暂不支持语音输入',
                     'recordingNotSupportedInTutorial': '教程模式暂不支持语音输入',
-                    'trialChatUnavailable': '体验版模型服务暂不可用，可能是当前使用人数过多，请稍后重试或在设置中切换其他聊天模型服务',
+                    'trialChatUnavailable': '当前体验人数过多，试用模型服务暂不可用，请稍后再试，或在设置中切换其他聊天模型服务',
                     'chatUnavailable': '聊天模型服务暂时不可用，请稍后重试',
                     'modelSettingsInvalid': '模型设置无效：{{message}}',
                     'trialTTSUnavailable': '体验版语音服务暂不可用，请稍后重试，或在前往「设置 -> 语音」中切换至其他服务',
