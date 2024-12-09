@@ -188,10 +188,10 @@ function InitializationPanel({ onClose }: { onClose: () => void }) {
         <div className="bg-white rounded-2xl z-10 w-11/12 md:w-3/4 lg:w-1/2 max-w-4xl max-h-screen overflow-y-auto custom-scrollbar p-8">
           <div className="flex flex-col">
             {/* Beta warning */}
-            <div className="flex flex-row items-start mb-4 p-4 bg-yellow-50 rounded-lg">
+            {/* <div className="flex flex-row items-start mb-4 p-4 bg-yellow-50 rounded-lg">
               <IoMdInformationCircleOutline size={20} className="text-yellow-600 mr-2 mt-0.5 flex-shrink-0" />
               <span className="text-yellow-700">{t('betaWarning')}</span>
-            </div>
+            </div> */}
             {/* Welcome message */}
             <div className="flex flex-col items-center">
               {/* Logo and Title */}
