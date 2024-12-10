@@ -449,7 +449,7 @@ export function MessageInput({
     </div>;
 }
 
-let enableVoiceModeShortcutTimer: NodeJS.Timeout
+// let enableVoiceModeShortcutTimer: NodeJS.Timeout
 
 function TextInput(
     { allowEdit, msgListSwitchSignal, addMessage, updateMessage, revisionMessage }: {
@@ -654,19 +654,19 @@ function TextInput(
             }
             value={msg.content} onChange={(e) => setMsg(msg.updateContent(e.target.value))}
             readOnly={!isTyping}
-            onKeyUp={(e) => {
-                if (e.key === 'v') {
-                    clearTimeout(enableVoiceModeShortcutTimer)
-                    setMsg(msg.updateContent(msg.content + 'v'))
-                }
+            onKeyUp={() => {
+                // if (e.key === 'v') {
+                //     clearTimeout(enableVoiceModeShortcutTimer)
+                //     setMsg(msg.updateContent(msg.content + 'v'))
+                // }
             }}
             onKeyDown={(e) => {
-                if (e.key === 'v' && !(e.metaKey || e.ctrlKey)) {
-                    e.preventDefault()
-                    enableVoiceModeShortcutTimer = setTimeout(() => {
-                        enableVoiceMode()
-                    }, 1000)
-                }
+                // if (e.key === 'v' && !(e.metaKey || e.ctrlKey)) {
+                //     e.preventDefault()
+                //     enableVoiceModeShortcutTimer = setTimeout(() => {
+                //         enableVoiceMode()
+                //     }, 1000)
+                // }
                 // if (e.key === 'Enter' && e.ctrlKey) {
                 //     e.preventDefault();
                 //     handleSend(msg, { generateAssistantMsg: false });
