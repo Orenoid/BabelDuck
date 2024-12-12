@@ -519,7 +519,7 @@ export function SpeechSettings({ className = "" }: { className?: string }) {
 
     return (
         <div className={className}>
-            {/* service selector */}
+            {/* tts service selector */}
             <div className="flex flex-row items-center justify-between mb-4">
                 <span className="text-gray-700 font-bold">{t('Speech Synthesis Service')}</span>
                 <DropDownMenuV2
@@ -531,7 +531,7 @@ export function SpeechSettings({ className = "" }: { className?: string }) {
                     menuClassName="right-0"
                 />
             </div>
-            {/* settings */}
+            {/* tts settings */}
             {selectedSvcId === 'webSpeech' &&
                 <WebSpeechSettingsPanel
                     unTypedSettings={speechSettings}
@@ -545,8 +545,21 @@ export function SpeechSettings({ className = "" }: { className?: string }) {
                 />
             }
             {selectedSvcId === 'freeTrial' &&
-                <FreeTrialSettings />
+                <FreeTrialTTSSettings />
             }
+
+            {/* stt service selector */}
+            <div className="flex flex-row items-center justify-between mb-4">
+                <span className="text-gray-700 font-bold">{t('Speech Recognition Service')}</span>
+                {/* <DropDownMenuV2
+                    entryLabel={<I18nText i18nText={availableSpeechSvcs.find((svc) => svc.id === selectedSvcId)?.name || availableSpeechSvcs[0].name} />}
+                    menuItems={availableSpeechSvcs.map((svc) => ({
+                        label: <I18nText i18nText={svc.name} />,
+                        onClick: () => { changeSpeechSvc(svc.id) }
+                    }))}
+                    menuClassName="right-0"
+                /> */}
+            </div>
         </div>
     );
 }
@@ -745,7 +758,17 @@ function AzureTTSSettingsPanel({
     );
 }
 
-function FreeTrialSettings() {
+function AzureSTTSettingsPanel({
+    unTypedSettings,
+    updateSettings
+}: {
+    unTypedSettings: object,
+    updateSettings: (settings: Partial<{ region: string; subscriptionKey: string; lang: string; voiceName: string }>) => void
+}) {
+    const { t } = useTranslation();
+}
+
+function FreeTrialTTSSettings() {
     const { t } = useTranslation();
     return <div className="flex flex-col">
         <div className="flex flex-row items-start mt-2 mb-4 text-sm text-gray-500">

@@ -173,7 +173,8 @@ i18n
                     'azureTTS.serviceTip': 'This service requires an Azure subscription key. You\'ll need to register for an Azure account and create a Speech Service resource to get the key. Azure TTS provides high-quality voices in many languages and supports neural text-to-speech.',
                     'autoPlayAudioDescription': 'Automatically play speech after AI responds to your message',
                     'systemPrompt': 'You are a friendly conversation partner. Please respond in the same language as the user. Keep your responses short and natural, under 50 words. Use casual, conversational language. Avoid formal language and complex sentences. Express one point at a time. Do not use formatted text (like bold or italic) or emojis to ensure better text-to-speech results.',
-                    'systemPromptHint': 'This is the character setting given to AI by the system. You can modify it according to your needs.'
+                    'systemPromptHint': 'This is the character setting given to AI by the system. You can modify it according to your needs.',
+                    'Speech Recognition Service': 'Speech Recognition Service'
                 }
             },
             zh: {
@@ -329,7 +330,8 @@ i18n
                     'azureTTS.serviceTip': '该服务需要 Azure 订阅密钥。你需要注册 Azure 账号并创建语音服务资源来获取密钥。Azure TTS 提供多种语言的高质量语音，支持神经网络文本转语音。',
                     'autoPlayAudioDescription': '在 AI 回复消息后自动播放语音',
                     'systemPrompt': '你是一位口语对话练习伙伴，请使用与用户相同的语言回复。保持回答简短自然，尽量控制在50字以内。使用日常对话的语气，避免复杂句子。一次表达一个观点。不要使用格式化文本（如粗体、斜体、序号等）和表情符号，以确保更好的文本转语音效果。',
-                    'systemPromptHint': '以上为系统赋予 AI 的人物设定，你可以根据自身需求进行修改。'
+                    'systemPromptHint': '以上为系统赋予 AI 的人物设定，你可以根据自身需求进行修改。',
+                    'Speech Recognition Service': '语音识别服务'
                 }
             },
             // the Japanese translation is generated using LLM, PRs are welcomed to improve it.
@@ -487,7 +489,8 @@ i18n
                     'azureTTS.serviceTip': 'このサービスには Azure サブスクリプションキー必要で���。Azure アカウントを登録し、Speech Service リソースを作成してキーを取得する必要があります。Azure TTS は多言語の高品質な音声を提供し、ニューラル音声合成をサポートしています。',
                     'autoPlayAudioDescription': 'AIが応答した後、自動的に音声を再生します',
                     'systemPrompt': 'フレンドリーな会話パートナーです。ユーザーと同じ言語で応答します。回答は短く自然に保ち、50語以内を目指します。カジュアルな会話調を使用し、形式的な言葉や複雑な文を避けます。一度に一つのポイントを表現します。テキスト読み上げの効果を高めるため、フォーマット済みテキスト（太字、斜体など）や絵文字は使用しません。',
-                    'systemPromptHint': 'これはシステムによってAIに与えられたキャラクター設定です。必要に応じて修正することができます。'
+                    'systemPromptHint': 'これはシステムによってAIに与えられたキャラクター設定です。必要に応じて修正することができます。',
+                    'Speech Recognition Service': '音声認識サービス'
                 }
             }
         }
