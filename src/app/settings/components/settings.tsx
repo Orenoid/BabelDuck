@@ -443,9 +443,7 @@ function CommonChatSettings({ chatSettings, updateChatSettings, className = "" }
                                     if (handler.handler.deletable) {
                                         updateChatSettings({
                                             ...chatSettings,
-                                            inputHandlers: chatSettings.inputHandlers.filter((h) =>
-                                                h.handler.implType !== handler.handler.implType
-                                            )
+                                            inputHandlers: chatSettings.inputHandlers.filter((_, i) => i !== index)
                                         })
                                     }
                                 }}

@@ -51,6 +51,7 @@ docker run -d --name babel-duck --env-file .env -p 9000:9000 orenoid/babel-duck:
 
 - [ ] 对话模板
 - [ ] 复述练习模式
+- [ ] 移动端适配
 - [ ] 语音回放
 - [ ] 支持多模态语音
 - [ ] 接入更多 LLM/TTS/STT 服务

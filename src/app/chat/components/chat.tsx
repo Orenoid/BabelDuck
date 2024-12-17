@@ -72,7 +72,7 @@ export function Chat({ chatID, chatTitle, loadChatByID, className = "" }: {
             throw new Error(`Chat intelligence with type ${type} not found`)
         }
     }
-    const inputHandlers = chatSettings !== undefined ?
+    const visibleInputHandlers = chatSettings !== undefined ?
         chatSettings.inputHandlers
             .filter((handler) => handler.display)
             .map((handler) => handler.handler)
@@ -251,11 +251,40 @@ export function Chat({ chatID, chatTitle, loadChatByID, className = "" }: {
             </div>
             {/* input */}
             <MessageInput addInputHandler={(handler) => {
-                updateInputHandlerInLocalStorage(chatID, inputHandlers?.length ?? 0, handler)
-            }} className="w-4/5"
+                if (chatSettings === undefined) return
+                updateInputHandlerInLocalStorage(chatID, visibleInputHandlers?.length ?? 0, handler)
+                const originalInputHandlers = chatSettings.inputHandlers
+                dispatch(setCurrentChatSettings({
+                    chatID,
+                    chatSettings: {
+                        ...chatSettings,
+                        inputHandlers: [
+                            ...originalInputHandlers.map((handler) => ({ handler: handler.handler.serialize(), display: handler.display })),
+                            { handler: handler.serialize(), display: true }
+                        ],
+                    }
+                }))
+            }}
+            updateInputHandler={(index, handler) => {
+                if (chatSettings === undefined) return
+                updateInputHandlerInLocalStorage(chatID, index, handler)
+                const originalInputHandlers = chatSettings.inputHandlers
+                dispatch(setCurrentChatSettings({
+                    chatID,
+                    chatSettings: {
+                        ...chatSettings,
+                        inputHandlers: originalInputHandlers.map((h, i) => 
+                            i === index 
+                                ? { handler: handler.serialize(), display: h.display }
+                                : { handler: h.handler.serialize(), display: h.display }
+                        ),
+                    }
+                }))
+            }}
+                className="w-4/5"
                 chatID={chatID}
                 msgListSwitchSignal={msgListSwitchSignal}
-                inputHandlers={inputHandlers}
+                inputHandlers={visibleInputHandlers}
                 addMesssage={addMesssage} messageList={currentMessageList}
                 // Temporarily forbid nested multi-level discussions, the component has already supported, 
                 // it's just the AI might be unable to handle too many levels

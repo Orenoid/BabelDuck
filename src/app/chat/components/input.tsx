@@ -1,31 +1,31 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { FaBackspace, FaMicrophone } from "react-icons/fa";
-import { LuSettings, LuUserCog2 } from "react-icons/lu";
-import { Audio, Oval } from "react-loader-spinner";
-import { messageAddedCallbackOptions } from "./chat";
-import { ChatSettingsContext } from "./chat-settings";
-import { SpecialRoles, TextMessage } from "./message";
-import { IconCircleWrapper } from "@/app/ui-utils/components/wrapper";
-import { diffChars } from "diff";
-import { LiaComments } from "react-icons/lia";
-import { PiKeyReturnBold } from "react-icons/pi";
-import { isOpenAILikeMessage, Message, OpenAILikeMessage } from "../lib/message";
-import Switch from "react-switch";
-import { IMediaRecorder } from "extendable-media-recorder";
-import { Tooltip } from "react-tooltip";
-import { FiPlus } from "react-icons/fi";
-import { updateInputHandlerInLocalStorage, updateInputSettingsPayloadInLocalStorage } from "../lib/chat";
-import {
-    InputHandler,
-    CustomInputHandlerCreator
-} from "./input-handlers";
-import { SemiTransparentOverlay } from "@/app/ui-utils/components/overlay";
-import { useTranslation } from "react-i18next";
 import { I18nText } from "@/app/i18n/i18n";
 import { TmpFilledButton, TmpTransparentButton } from "@/app/ui-utils/components/button";
+import { SemiTransparentOverlay } from "@/app/ui-utils/components/overlay";
+import { IconCircleWrapper } from "@/app/ui-utils/components/wrapper";
+import { diffChars } from "diff";
+import { IMediaRecorder } from "extendable-media-recorder";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { FaBackspace, FaMicrophone } from "react-icons/fa";
+import { FiPlus } from "react-icons/fi";
+import { LiaComments } from "react-icons/lia";
+import { LuSettings, LuUserCog2 } from "react-icons/lu";
+import { PiKeyReturnBold } from "react-icons/pi";
 import { TbPencil } from "react-icons/tb";
+import { Audio, Oval } from "react-loader-spinner";
+import Switch from "react-switch";
+import { Tooltip } from "react-tooltip";
+import { updateInputSettingsPayloadInLocalStorage } from "../lib/chat";
+import { isOpenAILikeMessage, Message, OpenAILikeMessage } from "../lib/message";
+import { messageAddedCallbackOptions } from "./chat";
+import { ChatSettingsContext } from "./chat-settings";
+import {
+    CustomInputHandlerCreator,
+    InputHandler
+} from "./input-handlers";
+import { SpecialRoles, TextMessage } from "./message";
 import { TutorialDiffView, TutorialInput } from "./tutorial-input";
 
 export async function reviseMessage(
@@ -220,7 +220,11 @@ export type MsgListSwitchSignal =
     | { type: 'backFromFollowUpDiscussion', message: Message, handledMsg: Message, handlerInstruction: string, key: number }
 
 export function MessageInput({
-    chatID, messageList, inputHandlers, addMesssage, addInputHandler: pAddInputHandler, msgListSwitchSignal, allowFollowUpDiscussion, startFollowUpDiscussion, className = ""
+    chatID, messageList, inputHandlers, msgListSwitchSignal, allowFollowUpDiscussion, className = "",
+    addMesssage,
+    addInputHandler: pAddInputHandler,
+    startFollowUpDiscussion,
+    updateInputHandler,
 }: {
     chatID: string
     messageList: Message[];
@@ -228,9 +232,9 @@ export function MessageInput({
     allowFollowUpDiscussion: boolean;
     // callback functions
     addMesssage: (message: Message, callbackOpts?: messageAddedCallbackOptions) => void;
-    // TODO tech-debt: 新增 inputHandler 应该通过更新 chatSettings 来实现
     addInputHandler: (handler: InputHandler) => void;
     startFollowUpDiscussion: (userInstruction: string, messageToRevise: Message, revisedText: Message) => void;
+    updateInputHandler: (index: number, handler: InputHandler) => void;
     // signals
     msgListSwitchSignal: MsgListSwitchSignal,
     className?: string;
@@ -321,17 +325,17 @@ export function MessageInput({
         }
         pAddInputHandler(handler);
         setCompState(compState.previousState);
-        inputHandlers.push(handler); // TODO need to find out why this would work...
     }
-    function updateInputHandler(handler: InputHandler) {
+    function _updateInputHandler(handler: InputHandler) {
         if (compState.type !== 'settingsPanel') {
             return;
         }
-        updateInputHandlerInLocalStorage(chatID, compState.handlerIndex, handler);
-        inputHandlers[compState.handlerIndex] = handler;
+        updateInputHandler(compState.handlerIndex, handler);
         setCompState(compState.previousState);
     }
-    function updateInputSettingsPayload(payload: object) {
+    // update the input component settings
+    // TODO tech-debt: maybe should just achieve this by directly updating the chat settings
+    function updateInputCompSettings(payload: object) {
         updateInputSettingsPayloadInLocalStorage(chatID, payload);
     }
 
@@ -401,7 +405,7 @@ export function MessageInput({
                         {compState.type === 'settingsPanel' && compState.handlerIndex === index && configurable &&
                             <>
                                 <SemiTransparentOverlay onClick={cancelUpdatingInputHandler} />
-                                <SettingsPanel updateHandler={updateInputHandler} />
+                                <SettingsPanel updateHandler={_updateInputHandler} />
                             </>
                         }
                     </div>
@@ -444,7 +448,7 @@ export function MessageInput({
             addMessage={addMesssage} updateMessage={updateMessage}
             revisionMessage={isNormal ? [compState.message, compState.fromRevision] : undefined} rejectionSignal={rejectionSignal} />}
         {inputComponentType === 'tutorialInput' && <TutorialInput msgListSwitchSignal={msgListSwitchSignal} allowEdit={isNormal}
-            addMessage={addMesssage} updateMessage={updateMessage} updateInputSettingsPayload={updateInputSettingsPayload}
+            addMessage={addMesssage} updateMessage={updateMessage} updateInputSettingsPayload={updateInputCompSettings}
             revisionMessage={isNormal ? [compState.message, compState.fromRevision] : undefined} rejectionSignal={rejectionSignal} />}
     </div>;
 }
