@@ -12,8 +12,8 @@ import { i18nText, I18nText } from "@/app/i18n/i18n";
 import { ChatSettingsContext } from "./chat-settings";
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
 import { WebSpeechTTS } from '../lib/tts-service';
-import { getSpeechSvcSettings } from "@/app/settings/components/speech-settings";
-import { getSelectedSpeechSvcID } from "@/app/settings/components/speech-settings";
+import { getTTSSvcSettings } from "@/app/settings/components/speech-settings";
+import { getSelectedTTSSvcID } from "@/app/settings/components/speech-settings";
 import { useTranslation } from "react-i18next";
 import { GoDependabot } from "react-icons/go";
 import { Tooltip } from "react-tooltip";
@@ -934,8 +934,8 @@ export function MessageContent({ content, className = "" }: {
 }
 
 async function getSpeechServiceSettings() {
-    const selectedSvcId = getSelectedSpeechSvcID()
-    const settings = await getSpeechSvcSettings(selectedSvcId)
+    const selectedSvcId = getSelectedTTSSvcID()
+    const settings = await getTTSSvcSettings(selectedSvcId)
     return {
         serviceId: selectedSvcId,
         settings: settings

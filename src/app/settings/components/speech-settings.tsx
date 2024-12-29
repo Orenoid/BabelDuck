@@ -1,22 +1,57 @@
+import { i18nText } from "@/app/i18n/i18n";
+import {
+    loadTTSServiceID, loadTTSSettings, loadSTTServiceID,
+    saveSTTServiceID, saveSTTSettings,
+    loadSTTSettings
+} from '../lib/speech-settings-persistence';
 
-export function getSelectedSpeechSvcID() {
-    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_ENABLE_FREE_TRIAL_TTS && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION);
-    const defaultSvcId = freeTrialSvcEnabled ? 'freeTrial' : 'webSpeech';
-    const selectedSvcId = localStorage.getItem('selectedSpeechServiceId') || defaultSvcId;
-    if (selectedSvcId === 'freeTrial' && !freeTrialSvcEnabled) {
-        return defaultSvcId;
+export const browserTTSSvcID = 'webSpeech';
+export const azureTTSSvcID = 'azure';
+export const freeTrialTTSSvcID = 'freeTrial';
+const availableTTSServices: { id: string; name: i18nText; }[] = [
+    { id: browserTTSSvcID, name: { key: 'speechSvc.webSpeech' } },
+    { id: azureTTSSvcID, name: { key: 'speechSvc.azure' } },
+];
+export function getAvailableTTSServices(): { id: string; name: i18nText; }[] {
+    const services = [...availableTTSServices];
+    const freeTrialTTSSvcEnabled = process.env.NEXT_PUBLIC_ENABLE_FREE_TRIAL_TTS === 'true' && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION !== undefined;
+    if (freeTrialTTSSvcEnabled) {
+        services.unshift({ id: freeTrialTTSSvcID, name: { key: 'speechSvc.freeTrial' } });
     }
-    return selectedSvcId;
+    return services;
+}
+
+/**
+ * Gets the selected TTS service ID from storage. If the stored service is not available,
+ * returns the default service (webSpeech).
+ * This function ensures the returned service ID matches one of the available services returned by getAvailableTTSServices, otherwise it will throw an error.
+ */
+export function getSelectedTTSSvcID() {
+    const availableServices = getAvailableTTSServices();
+    if (availableServices.length === 0) {
+        throw new Error('No available speech services');
+    }
+    const defaultSvcId = freeTrialTTSSvcID;
+    // Find default service in available services, fallback to first available if not found
+    const _defaultSvc = availableServices.find(svc => svc.id === defaultSvcId) || availableServices[0];
+    
+    const storedSvcId = loadTTSServiceID();
+    // Return stored service if it exists and is available
+    if (storedSvcId && availableServices.find(svc => svc.id === storedSvcId)) {
+        return storedSvcId;
+    }
+    console.error('cannot find stored service, returning default', storedSvcId, _defaultSvc.id);
+    return _defaultSvc.id;
 }
 
 // load speech settings from local storage, and automatically correct invalid settings with default values
-export async function getSpeechSvcSettings(svcId: string): Promise<object> {
-    const saved = localStorage.getItem(`speechSettings-${svcId}`);
-    const unTypedSettings = saved ? JSON.parse(saved) : {};
+export async function getTTSSvcSettings(svcId: string): Promise<object> {
+    const unTypedSettings = loadTTSSettings(svcId) || {};
+
     switch (svcId) {
-        case 'freeTrial':
+        case freeTrialTTSSvcID:
             return {};
-        case 'webSpeech':
+        case browserTTSSvcID:
             const webSpeechSettings = unTypedSettings as { lang?: string; voiceURI?: string; };
             // validate lang
             let validLang = webSpeechSettings.lang || 'en';
@@ -47,7 +82,7 @@ export async function getSpeechSvcSettings(svcId: string): Promise<object> {
                 validVoiceURI = availableVoices[0].voiceURI;
             }
             return { lang: validLang, voiceURI: validVoiceURI };
-        case 'azure':
+        case azureTTSSvcID:
             const azureSettings = unTypedSettings as { region?: string; subscriptionKey?: string; lang?: string; voiceName?: string; };
             // validate region
             let validRegion = azureSettings.region || azureRegions[0];
@@ -69,8 +104,88 @@ export async function getSpeechSvcSettings(svcId: string): Promise<object> {
     return {};
 }
 
-// huge thanks to SpeechGPT
-// copied from https://github.com/hahahumble/speechgpt/blob/main/src/constants/data.ts
+
+export const azureSTTSvcID = 'azureSTT';
+const defaultSTTSvcID = azureSTTSvcID;
+/**
+ * Get the currently selected STT (Speech-to-Text) service ID from localStorage.
+ * If no service is stored or the stored service is not available, returns the default service.
+ * This function will ensure the returned service ID matches one of the available services returned by getAvailableSTTServices, otherwise it will throw an error.
+ * @returns The selected STT service ID
+ * @throws Error if no speech services are available
+ */
+export function getSelectedSTTSvcID() {
+    const availableServices = getAvailableSTTServices();
+    if (availableServices.length === 0) {
+        throw new Error('No available speech services');
+    }
+    const _defaultSTTSvc = availableServices.find(svc => svc.id === defaultSTTSvcID) || availableServices[0];
+    const storedSTTSvcID = loadSTTServiceID();
+
+    if (storedSTTSvcID && availableServices.find(svc => svc.id === storedSTTSvcID)) {
+        return storedSTTSvcID;
+    }
+
+    return _defaultSTTSvc.id;
+}
+
+export function getAvailableSTTServices(): { id: string; name: i18nText; }[] {
+    return [
+        { id: azureSTTSvcID, name: { key: 'speechSvc.azureSTT' } },
+    ];
+}
+
+/**
+ * Load STT settings by service ID, if no settings are found or the settings are invalid, return the default settings object corresponding to the service ID
+ * @param svcId STT service ID
+ * @returns corresponding STT settings
+ */
+export function getSTTSvcSettings(svcId: string): object {
+    const unTypedSettings = loadSTTSettings(svcId) || {};
+    switch (svcId) {
+        case azureSTTSvcID:
+            const azureSettings = unTypedSettings as { region?: string; subscriptionKey?: string; lang?: string; };
+            // validate region
+            let validRegion = azureSettings.region || azureRegions[0];
+            if (!azureRegions.includes(validRegion)) {
+                validRegion = azureRegions[0];
+            }
+            // validate lang
+            let validLang = azureSettings.lang || Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
+            if (!azureSpeechRecognitionLanguagesLocale[validLang]) {
+                validLang = Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
+            }
+            return { 
+                region: validRegion, 
+                lang: validLang,
+                ...azureSettings 
+            };
+        default:
+            throw new Error(`Invalid STT service ID: ${svcId}`);
+    }
+}
+
+/**
+ * Save STT settings
+ * @param svcId STT service ID 
+ * @param settings Settings to save
+ */
+export function saveSTTSvcSettings(svcId: string, settings: object) {
+    saveSTTSettings(svcId, settings);
+}
+
+/**
+ * Save selected STT service ID
+ * @param svcID STT service ID to save
+ */
+export function setSelectedSTTSvcID(svcID: string) {
+    saveSTTServiceID(svcID);
+}
+
+// some constants copied from SpeechGPT
+// https://github.com/hahahumble/speechgpt/blob/main/src/constants/data.ts
+
+// browser supported languages for TTS
 export const speechSynthesisSystemLanguages: { [key: string]: string; } = {
     // System language names for tts
     zh: ' 中文 ', // Chinese
@@ -145,11 +260,9 @@ export const speechSynthesisSystemLanguages: { [key: string]: string; } = {
     te: 'తెలుగు', // Telugu
     ur: 'اردو', // Urdu
     uz: 'Oʻzbekcha', // Uzbek
-    cy: 'Cymraeg', // Welsh
-    zu: 'isiZulu', // Zulu
 };
 
-// Azure TTS
+// Azure
 export const azureRegions = [
     'australiaeast',
     'australiasoutheast',
@@ -184,6 +297,7 @@ export const azureRegions = [
     'westus2',
 ];
 
+// Azure TTS
 export const azureSpeechSynthesisLanguagesLocale: { [key: string]: string; } = {
     'af-ZA': 'Afrikaans',
     'am-ET': 'አማርኛ',
@@ -302,14 +416,14 @@ export const azureSpeechSynthesisLanguagesLocale: { [key: string]: string; } = {
     'si-LK': 'සිංහල',
     'sk-SK': 'Slovenčina',
     'sl-SI': 'Slovenščina',
-    'so-SO': 'Soomaali',
+    'so-SO': 'Soomaaliga',
     'sq-AL': 'Shqip',
     'sr-RS': 'Српски',
     'su-ID': 'Basa Sunda',
     'sv-SE': 'Svenska',
     'sw-KE': 'Kiswahili (Kenya)',
     'sw-TZ': 'Kiswahili (Tanzania)',
-    'ta-IN': 'தமிழ் (இந்தியா)',
+    'ta-IN': 'தமிழ்',
     'ta-LK': 'தமிழ் (இலங்கை)',
     'ta-MY': 'தமிழ் (மலேசியா)',
     'ta-SG': 'தமிழ் (சிங்கப்பூர்)',
@@ -317,7 +431,7 @@ export const azureSpeechSynthesisLanguagesLocale: { [key: string]: string; } = {
     'th-TH': 'ไทย',
     'tr-TR': 'Türkçe',
     'uk-UA': 'Українська',
-    'ur-IN': 'اردو (بھارت)',
+    'ur-IN': 'اردو',
     'ur-PK': 'اردو (پاکستان)',
     'uz-UZ': "O'zbek",
     'vi-VN': 'Tiếng Việt',
@@ -612,9 +726,6 @@ export const azureSpeechSynthesisVoices: { [key: string]: string[]; } = {
 };
 
 // Azure STT
-
-// 2. Azure Speech Services
-
 export const azureSpeechRecognitionLanguagesLocale: { [key: string]: string } = {
     'af-ZA': 'Afrikaans (Suid-Afrika)',
     'am-ET': 'አማርኛ (ኢትዮጵያ)',
@@ -724,9 +835,9 @@ export const azureSpeechRecognitionLanguagesLocale: { [key: string]: string } = 
     'mt-MT': 'Malti (Malta)',
     'my-MM': 'မြန်မာ (မြန်မာ)',
     'nb-NO': 'Norsk Bokmål (Norge)',
-    'ne-NP': 'नेपाली (नेपाल)',
-    'nl-BE': 'Nederlands (België)',
-    'nl-NL': 'Nederlands (Nederland)',
+    'ne-NP': 'नेपली (नेपाल)',
+    'nl-BE': 'Dutch (Belgium)',
+    'nl-NL': 'Dutch (Netherlands)',
     'pl-PL': 'Polski (Polska)',
     'ps-AF': 'پښتو (افغانستان)',
     'pt-BR': 'Português (Brasil)',
@@ -756,10 +867,9 @@ export const azureSpeechRecognitionLanguagesLocale: { [key: string]: string } = 
     'zh-HK': '中文（香港）',
     'zh-TW': '中文（台灣）',
     'zu-ZA': 'isiZulu (iNingizimu Afrika)',
-  };
-  
-  // 139 languages
-  export const azureSpeechRecognitionLanguages: { [key: string]: string } = {
+};
+
+export const azureSpeechRecognitionLanguages: { [key: string]: string } = {
     'af-ZA': 'Afrikaans (South Africa)',
     'am-ET': 'Amharic (Ethiopia)',
     'ar-AE': 'Arabic (United Arab Emirates)',
@@ -900,5 +1010,4 @@ export const azureSpeechRecognitionLanguagesLocale: { [key: string]: string } = 
     'zh-HK': 'Chinese (Hong Kong)',
     'zh-TW': 'Chinese (Taiwan)',
     'zu-ZA': 'Zulu (South Africa)',
-  };
-  
+};

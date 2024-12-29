@@ -1,30 +1,29 @@
 'use client'
 
-import { LuSettings } from "react-icons/lu";
-import { useEffect, useState, useMemo } from 'react';
-import { IoMdClose, IoMdInformationCircleOutline } from "react-icons/io";
-import { useTranslation } from "react-i18next";
-import i18n, { i18nText, I18nText } from '../../i18n/i18n';
-import { DropDownMenuV2 } from "@/app/ui-utils/components/DropdownMenu";
-import { addCustomLLMServiceSettings, getLLMServiceSettings, LLMServiceSettingsRecord, OpenAICompatibleAPIService, updateLLMServiceSettings } from "@/app/intelligence-llm/lib/llm-service";
-import { getLLMSettingsComponent } from "@/app/intelligence-llm/components/llm-service";
-import { loadGlobalChatSettings, switchToLocalChatSettings, switchToGlobalChatSettings, setLocalChatSettings, setGlobalChatSettings, loadChatSettings } from "../lib/settings";
-import { ChatSettings } from "@/app/chat/components/chat-settings";
-import { LocalChatSettings } from "@/app/chat/components/chat-settings";
-import { BabelDuckChatIntelligence, CustomLLMChatIntelligence, FreeTrialChatIntelligence, getSelectableChatIntelligenceSettings, getChatIntelligenceSettingsByID, OpenAIChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
+import { setCurrentChatSettings } from "@/app/chat/components/chat-redux";
+import { ChatSettings, LocalChatSettings } from "@/app/chat/components/chat-settings";
 import { InputHandler } from "@/app/chat/components/input-handlers";
-import { BabelDuckChatISettings, CustomLLMChatISettings, FreeTrialChatISettings, OpenAIChatISettings } from "@/app/intelligence-llm/components/intelligence";
-import Switch from "react-switch";
-import { IconCircleWrapper } from "@/app/ui-utils/components/wrapper";
-import { PiTrashBold } from "react-icons/pi";
-import { Tooltip } from "react-tooltip";
-import { TbCloud, TbCloudPlus } from "react-icons/tb";
-import { IoStopCircleOutline } from "react-icons/io5";
-import { PiSpeakerHighBold } from "react-icons/pi";
 import { WebSpeechTTS } from "@/app/chat/lib/tts-service";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
-import { setCurrentChatSettings } from "@/app/chat/components/chat-redux";
-import { azureRegions, azureSpeechSynthesisLanguagesLocale, azureSpeechSynthesisVoices, getSelectedSpeechSvcID, getSpeechSvcSettings, speechSynthesisSystemLanguages } from "./speech-settings";
+import { BabelDuckChatISettings, CustomLLMChatISettings, FreeTrialChatISettings, OpenAIChatISettings } from "@/app/intelligence-llm/components/intelligence";
+import { getLLMSettingsComponent } from "@/app/intelligence-llm/components/llm-service";
+import { BabelDuckChatIntelligence, CustomLLMChatIntelligence, FreeTrialChatIntelligence, getChatIntelligenceSettingsByID, getSelectableChatIntelligenceSettings, OpenAIChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
+import { addCustomLLMServiceSettings, getLLMServiceSettings, LLMServiceSettingsRecord, OpenAICompatibleAPIService, updateLLMServiceSettings } from "@/app/intelligence-llm/lib/llm-service";
+import { DropDownMenuV2 } from "@/app/ui-utils/components/DropdownMenu";
+import { IconCircleWrapper } from "@/app/ui-utils/components/wrapper";
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from "react-i18next";
+import { IoMdClose, IoMdInformationCircleOutline } from "react-icons/io";
+import { IoStopCircleOutline } from "react-icons/io5";
+import { LuSettings } from "react-icons/lu";
+import { PiSpeakerHighBold, PiTrashBold } from "react-icons/pi";
+import { TbCloud, TbCloudPlus } from "react-icons/tb";
+import Switch from "react-switch";
+import { Tooltip } from "react-tooltip";
+import i18n, { i18nText, I18nText } from '../../i18n/i18n';
+import { loadChatSettings, loadGlobalChatSettings, setGlobalChatSettings, setLocalChatSettings, switchToGlobalChatSettings, switchToLocalChatSettings } from "../lib/settings";
+import { saveTTSServiceID, saveTTSSettings } from '../lib/speech-settings-persistence';
+import { azureRegions, azureSpeechRecognitionLanguagesLocale, azureSpeechSynthesisLanguagesLocale, azureSpeechSynthesisVoices, freeTrialTTSSvcID, azureTTSSvcID, browserTTSSvcID, getAvailableSTTServices, getAvailableTTSServices, getSelectedSTTSvcID, getSelectedTTSSvcID, getSTTSvcSettings, getTTSSvcSettings, setSelectedSTTSvcID as saveSelectedSTTSvcID, saveSTTSvcSettings, speechSynthesisSystemLanguages, azureSTTSvcID } from "./speech-settings";
 
 // settings entry in the sidebar
 export function SettingsEntry({ className = "" }: { className?: string }) {
@@ -474,95 +473,150 @@ function CommonChatSettings({ chatSettings, updateChatSettings, className = "" }
     </div>
 }
 
-
-// 修改 SpeechSettings 组件，添加状态管理
+/**
+ * SpeechSettings component manages speech synthesis (TTS) and speech recognition (STT) settings
+ * Allows users to:
+ * - Select and configure text-to-speech services (web speech, Azure, etc.)
+ * - Select and configure speech-to-text services (Azure)
+ * - Test speech synthesis with custom text
+ * @param className Optional CSS class name to apply to the root element
+ */
 export function SpeechSettings({ className = "" }: { className?: string }) {
     const { t } = useTranslation();
 
-    const availableSpeechSvcs = [
-        { id: 'webSpeech', name: { key: 'speechSvc.webSpeech' } },
-        { id: 'azure', name: { key: 'speechSvc.azure' } },
-    ]
+    const [ttsState, setTTSState] = useState<{
+        selectedSvcId: string;
+        settings: object | null;
+    }>({
+        selectedSvcId: getSelectedTTSSvcID(),
+        settings: null
+    });
 
-    const freeTrialSvcEnabled = !!(process.env.NEXT_PUBLIC_ENABLE_FREE_TRIAL_TTS && process.env.NEXT_PUBLIC_AZURE_SPEECH_REGION)
-    if (freeTrialSvcEnabled) {
-        availableSpeechSvcs.unshift({ id: 'freeTrial', name: { key: 'speechSvc.freeTrial' } })
+    const [sttState, setSTTState] = useState<{
+        selectedSvcId: string;
+        settings: object | null;
+    }>({
+        selectedSvcId: getSelectedSTTSvcID(),
+        settings: null
+    });
+
+    const availableTTSSvcs = getAvailableTTSServices();
+    const availableSTTSvcs = getAvailableSTTServices();
+
+    // ======= state converters =======
+    // ==== TTS ====
+    function changeTTSSvc(svcId: string) {
+        saveTTSServiceID(svcId);
+        setTTSState(prev => ({
+            ...prev,
+            selectedSvcId: svcId
+        }));
     }
-
-    const [selectedSvcId, setSelectedSvcId] = useState(getSelectedSpeechSvcID());
-    const [speechSettings, setSpeechSettings] = useState<object | null>(null);
-
+    const updateTTSSettings = (svcId: string, newSettings: Partial<object>) => {
+        const updatedSettings = { ...ttsState.settings, ...newSettings };
+        saveTTSSettings(svcId, updatedSettings);
+        setTTSState(prev => ({
+            ...prev,
+            settings: updatedSettings
+        }));
+    };
     useEffect(() => {
         async function loadSettings() {
-            const settings = await getSpeechSvcSettings(selectedSvcId);
-            setSpeechSettings(settings);
+            const settings = await getTTSSvcSettings(ttsState.selectedSvcId);
+            setTTSState(prev => ({
+                ...prev,
+                settings
+            }));
         }
         loadSettings();
-    }, [selectedSvcId]);
-
-    function changeSpeechSvc(svcId: string) {
-        setSelectedSvcId(svcId);
-        localStorage.setItem('selectedSpeechServiceId', svcId);
+    }, [ttsState.selectedSvcId]);
+    // ==== STT ====
+    function changeSTTSvc(svcId: string) {
+        saveSelectedSTTSvcID(svcId);
+        setSTTState(prev => ({
+            ...prev,
+            selectedSvcId: svcId
+        }));
     }
-
-    const updateSpeechSettings = (svcId: string, newSettings: Partial<object>) => {
-        const updatedSettings = { ...speechSettings, ...newSettings };
-        localStorage.setItem(`speechSettings-${svcId}`, JSON.stringify(updatedSettings));
-        setSpeechSettings(updatedSettings);
+    const updateSTTSettings = (svcId: string, newSettings: Partial<object>) => {
+        const updatedSettings = { ...sttState.settings, ...newSettings };
+        saveSTTSvcSettings(svcId, updatedSettings);
+        setSTTState(prev => ({
+            ...prev,
+            settings: updatedSettings
+        }));
     };
+    useEffect(() => {
+        const savedSettings = getSTTSvcSettings(sttState.selectedSvcId);
+        setSTTState(prev => ({
+            ...prev,
+            settings: savedSettings
+        }));
+    }, [sttState.selectedSvcId]);
 
-    if (speechSettings === null) {
+    // ======= JSX =======
+    if (ttsState.settings === null || sttState.settings === null) {
         return <div></div>;
     }
-
     return (
         <div className={className}>
-            {/* tts service selector */}
-            <div className="flex flex-row items-center justify-between mb-4">
-                <span className="text-gray-700 font-bold">{t('Speech Synthesis Service')}</span>
-                <DropDownMenuV2
-                    entryLabel={<I18nText i18nText={availableSpeechSvcs.find((svc) => svc.id === selectedSvcId)?.name || availableSpeechSvcs[0].name} />}
-                    menuItems={availableSpeechSvcs.map((svc) => ({
-                        label: <I18nText i18nText={svc.name} />,
-                        onClick: () => { changeSpeechSvc(svc.id) }
-                    }))}
-                    menuClassName="right-0"
-                />
+            {/* TTS service selector and settings */}
+            <div className="mb-8">
+                <div className="flex flex-row items-center justify-between">
+                    <span className="text-gray-700 font-bold">{t('Speech Synthesis Service')}</span>
+                    <DropDownMenuV2
+                        entryLabel={<I18nText i18nText={availableTTSSvcs.find((svc) => svc.id === ttsState.selectedSvcId)?.name || availableTTSSvcs[0].name} />}
+                        menuItems={availableTTSSvcs.map((svc) => ({
+                            label: <I18nText i18nText={svc.name} />,
+                            onClick: () => { changeTTSSvc(svc.id) }
+                        }))}
+                        menuClassName="right-0"
+                    />
+                </div>
+                {/* concrete tts settings */}
+                {ttsState.selectedSvcId === browserTTSSvcID &&
+                    <BrowserTTSSettingsPanel
+                        unTypedSettings={ttsState.settings}
+                        updateSettings={(newSettings) => { updateTTSSettings(ttsState.selectedSvcId, newSettings); }}
+                    />
+                }
+                {ttsState.selectedSvcId === azureTTSSvcID &&
+                    <AzureTTSSettingsPanel
+                        unTypedSettings={ttsState.settings}
+                        updateSettings={(newSettings) => updateTTSSettings(ttsState.selectedSvcId, newSettings)}
+                    />
+                }
+                {ttsState.selectedSvcId === freeTrialTTSSvcID &&
+                    <FreeTrialTTSSettings />
+                }
             </div>
-            {/* tts settings */}
-            {selectedSvcId === 'webSpeech' &&
-                <WebSpeechSettingsPanel
-                    unTypedSettings={speechSettings}
-                    updateSettings={(newSettings) => { updateSpeechSettings(selectedSvcId, newSettings); }}
-                />
-            }
-            {selectedSvcId === 'azure' &&
-                <AzureTTSSettingsPanel
-                    unTypedSettings={speechSettings}
-                    updateSettings={(newSettings) => updateSpeechSettings(selectedSvcId, newSettings)}
-                />
-            }
-            {selectedSvcId === 'freeTrial' &&
-                <FreeTrialTTSSettings />
-            }
 
-            {/* stt service selector */}
-            <div className="flex flex-row items-center justify-between mb-4">
-                <span className="text-gray-700 font-bold">{t('Speech Recognition Service')}</span>
-                {/* <DropDownMenuV2
-                    entryLabel={<I18nText i18nText={availableSpeechSvcs.find((svc) => svc.id === selectedSvcId)?.name || availableSpeechSvcs[0].name} />}
-                    menuItems={availableSpeechSvcs.map((svc) => ({
-                        label: <I18nText i18nText={svc.name} />,
-                        onClick: () => { changeSpeechSvc(svc.id) }
-                    }))}
-                    menuClassName="right-0"
-                /> */}
+            {/* STT service selector and settings */}
+            <div className="">
+                <div className="flex flex-row items-center justify-between">
+                    <span className="text-gray-700 font-bold">{t('Speech Recognition Service')}</span>
+                    <DropDownMenuV2
+                        entryLabel={<I18nText i18nText={availableSTTSvcs.find((svc) => svc.id === sttState.selectedSvcId)?.name || availableSTTSvcs[0].name} />}
+                        menuItems={availableSTTSvcs.map((svc) => ({
+                            label: <I18nText i18nText={svc.name} />,
+                            onClick: () => { changeSTTSvc(svc.id) }
+                        }))}
+                        menuClassName="right-0"
+                    />
+                </div>
+                {/* STT Settings Panel */}
+                {sttState.selectedSvcId === azureSTTSvcID && (
+                    <AzureSTTSettingsPanel
+                        unTypedSettings={sttState.settings}
+                        updateSettings={(newSettings) => updateSTTSettings(sttState.selectedSvcId, newSettings)}
+                    />
+                )}
             </div>
         </div>
     );
 }
 
-export function WebSpeechSettingsPanel({
+export function BrowserTTSSettingsPanel({
     unTypedSettings,
     updateSettings
 }: {
@@ -756,16 +810,6 @@ function AzureTTSSettingsPanel({
     );
 }
 
-function AzureSTTSettingsPanel({
-    unTypedSettings,
-    updateSettings
-}: {
-    unTypedSettings: object,
-    updateSettings: (settings: Partial<{ region: string; subscriptionKey: string; lang: string; voiceName: string }>) => void
-}) {
-    const { t } = useTranslation();
-}
-
 function FreeTrialTTSSettings() {
     const { t } = useTranslation();
     return <div className="flex flex-col">
@@ -774,6 +818,67 @@ function FreeTrialTTSSettings() {
             <span>{t('freeTrial.ttsServiceTip')}</span>
         </div>
     </div>
+}
+
+function AzureSTTSettingsPanel({
+    unTypedSettings,
+    updateSettings
+}: {
+    unTypedSettings: object,
+    updateSettings: (settings: Partial<{ region: string; subscriptionKey: string; lang: string }>) => void
+}) {
+    const { t } = useTranslation();
+    const settings = unTypedSettings as { region?: string; subscriptionKey?: string; lang?: string };
+    
+    // Get first language code
+    const firstLangCode = Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
+
+    return (
+        <div className="flex flex-col pl-8">
+            <div className="flex flex-row items-start mt-2 mb-4 text-sm text-gray-500">
+                <IoMdInformationCircleOutline size={15} className="mr-2 mt-1 flex-shrink-0" />
+                <span>{t('azureSTT.serviceTip')}</span>
+            </div>
+
+            {/* Azure Region */}
+            <div className="flex flex-row items-center justify-between mb-4">
+                <span className="text-gray-700 font-bold">{t('Azure Region')}</span>
+                <DropDownMenuV2
+                    entryLabel={settings.region || azureRegions[0]}
+                    menuItems={azureRegions.map((region) => ({
+                        label: region,
+                        onClick: () => updateSettings({ region })
+                    }))}
+                    menuClassName="right-0"
+                />
+            </div>
+
+            {/* Subscription Key */}
+            <div className="flex flex-col mb-4">
+                <label className="text-gray-700 font-bold mb-2">{t('Subscription Key')}</label>
+                <input
+                    type="password"
+                    value={settings.subscriptionKey || ''}
+                    onChange={(e) => updateSettings({ subscriptionKey: e.target.value })}
+                    className="p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    placeholder={t('Enter your Azure subscription key')}
+                />
+            </div>
+
+            {/* Language Selection */}
+            <div className="flex flex-row items-center justify-between mb-4">
+                <span className="text-gray-700 font-bold">{t('Language')}</span>
+                <DropDownMenuV2
+                    entryLabel={azureSpeechRecognitionLanguagesLocale[settings.lang || firstLangCode]}
+                    menuItems={Object.entries(azureSpeechRecognitionLanguagesLocale).map(([langCode, langName]) => ({
+                        label: langName,
+                        onClick: () => updateSettings({ lang: langCode })
+                    }))}
+                    menuClassName="right-0 max-h-96 overflow-y-auto"
+                />
+            </div>
+        </div>
+    );
 }
 
 function LLMSettings() {
