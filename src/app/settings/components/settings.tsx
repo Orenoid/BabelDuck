@@ -23,7 +23,7 @@ import { Tooltip } from "react-tooltip";
 import i18n, { i18nText, I18nText } from '../../i18n/i18n';
 import { loadChatSettings, loadGlobalChatSettings, setGlobalChatSettings, setLocalChatSettings, switchToGlobalChatSettings, switchToLocalChatSettings } from "../lib/settings";
 import { saveTTSServiceID, saveTTSSettings } from '../lib/speech-settings-persistence';
-import { azureRegions, azureSpeechRecognitionLanguagesLocale, azureSpeechSynthesisLanguagesLocale, azureSpeechSynthesisVoices, freeTrialTTSSvcID, azureTTSSvcID, browserTTSSvcID, getAvailableSTTServices, getAvailableTTSServices, getSelectedSTTSvcID, getSelectedTTSSvcID, getSTTSvcSettings, getTTSSvcSettings, setSelectedSTTSvcID as saveSelectedSTTSvcID, saveSTTSvcSettings, speechSynthesisSystemLanguages, azureSTTSvcID } from "./speech-settings";
+import { azureRegions, azureSpeechRecognitionLanguagesLocale, azureSpeechSynthesisLanguagesLocale, azureSpeechSynthesisVoices, freeTrialTTSSvcID, azureTTSSvcID, browserTTSSvcID, getAvailableSTTServices, getAvailableTTSServices, getSelectedSTTSvcID, getSelectedTTSSvcID, getSTTSvcSettings, getTTSSvcSettings, setSelectedSTTSvcID as saveSelectedSTTSvcID, saveSTTSvcSettings, speechSynthesisSystemLanguages, azureSTTSvcID, browserSTTSvcID, speechRecognitionSystemLanguagesLocale } from "./speech-settings";
 
 // settings entry in the sidebar
 export function SettingsEntry({ className = "" }: { className?: string }) {
@@ -605,6 +605,12 @@ export function SpeechSettings({ className = "" }: { className?: string }) {
                     />
                 </div>
                 {/* STT Settings Panel */}
+                {sttState.selectedSvcId === browserSTTSvcID && (
+                    <BrowserSTTSettingsPanel
+                        unTypedSettings={sttState.settings}
+                        updateSettings={(newSettings) => updateSTTSettings(sttState.selectedSvcId, newSettings)}
+                    />
+                )}
                 {sttState.selectedSvcId === azureSTTSvcID && (
                     <AzureSTTSettingsPanel
                         unTypedSettings={sttState.settings}
@@ -871,6 +877,39 @@ function AzureSTTSettingsPanel({
                 <DropDownMenuV2
                     entryLabel={azureSpeechRecognitionLanguagesLocale[settings.lang || firstLangCode]}
                     menuItems={Object.entries(azureSpeechRecognitionLanguagesLocale).map(([langCode, langName]) => ({
+                        label: langName,
+                        onClick: () => updateSettings({ lang: langCode })
+                    }))}
+                    menuClassName="right-0 max-h-96 overflow-y-auto"
+                />
+            </div>
+        </div>
+    );
+}
+
+function BrowserSTTSettingsPanel({
+    unTypedSettings,
+    updateSettings
+}: {
+    unTypedSettings: object,
+    updateSettings: (settings: Partial<{ lang: string }>) => void
+}) {
+    const { t } = useTranslation();
+    const settings = unTypedSettings as { lang: string };
+
+    return (
+        <div className="flex flex-col pl-8">
+            <div className="flex flex-row items-start mt-2 mb-4 text-sm text-gray-500">
+                <IoMdInformationCircleOutline size={15} className="mr-2 mt-1 flex-shrink-0" />
+                <span>{t('webSpeech.sttServiceTip')}</span>
+            </div>
+
+            {/* Language Selection */}
+            <div className="flex flex-row items-center justify-between mb-4">
+                <span className="text-gray-700 font-bold">{t('Language')}</span>
+                <DropDownMenuV2
+                    entryLabel={speechRecognitionSystemLanguagesLocale[settings.lang]}
+                    menuItems={Object.entries(speechRecognitionSystemLanguagesLocale).map(([langCode, langName]) => ({
                         label: langName,
                         onClick: () => updateSettings({ lang: langCode })
                     }))}

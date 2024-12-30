@@ -106,7 +106,8 @@ export async function getTTSSvcSettings(svcId: string): Promise<object> {
 
 
 export const azureSTTSvcID = 'azureSTT';
-const defaultSTTSvcID = azureSTTSvcID;
+export const browserSTTSvcID = 'webSpeechSTT';
+const defaultSTTSvcID = browserSTTSvcID;
 /**
  * Get the currently selected STT (Speech-to-Text) service ID from localStorage.
  * If no service is stored or the stored service is not available, returns the default service.
@@ -131,6 +132,7 @@ export function getSelectedSTTSvcID() {
 
 export function getAvailableSTTServices(): { id: string; name: i18nText; }[] {
     return [
+        { id: browserSTTSvcID, name: { key: 'speechSvc.webSpeechSTT' } },
         { id: azureSTTSvcID, name: { key: 'speechSvc.azureSTT' } },
     ];
 }
@@ -143,6 +145,15 @@ export function getAvailableSTTServices(): { id: string; name: i18nText; }[] {
 export function getSTTSvcSettings(svcId: string): object {
     const unTypedSettings = loadSTTSettings(svcId) || {};
     switch (svcId) {
+        case browserSTTSvcID:
+            const webSpeechSettings = unTypedSettings as { lang?: string };
+            // validate lang
+            let webSpeechLang = webSpeechSettings.lang || 'en-US';
+            if (!speechRecognitionSystemLanguagesLocale[webSpeechLang]) {
+                webSpeechLang = 'en-US';
+            }
+            return { lang: webSpeechLang };
+            
         case azureSTTSvcID:
             const azureSettings = unTypedSettings as { region?: string; subscriptionKey?: string; lang?: string; };
             // validate region
@@ -151,13 +162,13 @@ export function getSTTSvcSettings(svcId: string): object {
                 validRegion = azureRegions[0];
             }
             // validate lang
-            let validLang = azureSettings.lang || Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
-            if (!azureSpeechRecognitionLanguagesLocale[validLang]) {
-                validLang = Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
+            let azureLang = azureSettings.lang || Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
+            if (!azureSpeechRecognitionLanguagesLocale[azureLang]) {
+                azureLang = Object.keys(azureSpeechRecognitionLanguagesLocale)[0];
             }
             return { 
                 region: validRegion, 
-                lang: validLang,
+                lang: azureLang,
                 ...azureSettings 
             };
         default:
@@ -261,6 +272,42 @@ export const speechSynthesisSystemLanguages: { [key: string]: string; } = {
     ur: 'اردو', // Urdu
     uz: 'Oʻzbekcha', // Uzbek
 };
+
+// browser supported languages for STT
+export const speechRecognitionSystemLanguagesLocale: { [key: string]: string } = {
+    'en-US': 'English(United States)',
+    'en-GB': 'English(United Kingdom)',
+    'en-IN': 'English(India)',
+    'es-ES': 'Español',
+    'fr-FR': 'Français',
+    'de-DE': 'Deutsch',
+    'it-IT': 'Italiano',
+    'ja-JP': '日本語',
+    'ko-KR': '한국어',
+    'cmn-Hans-CN': '普通话 (中国大陆)',
+    'cmn-Hans-HK': '普通话 (香港)',
+    'yue-Hant-HK': '粵語 (香港)',
+    'ar-SA': 'العربية',
+    'pt-BR': 'Português',
+    'ru-RU': 'Русский',
+    'nl-NL': 'Nederlands',
+    'tr-TR': 'Türkçe',
+    'sv-SE': 'Svenska',
+    'hi-IN': 'हिन्दी',
+    'el-GR': 'Ελληνικά',
+    'he-IL': 'עברית',
+    'id-ID': 'Bahasa Indonesia',
+    'pl-PL': 'Polski',
+    'th-TH': 'ไทย',
+    'cs-CZ': 'Čeština',
+    'hu-HU': 'Magyar',
+    'da-DK': 'Dansk',
+    'fi-FI': 'Suomi',
+    'no-NO': 'Norsk',
+    'sk-SK': 'Slovenčina',
+    'uk-UA': 'Українська',
+    'vi-VN': 'Tiếng Việt',
+  };
 
 // Azure
 export const azureRegions = [

@@ -176,7 +176,9 @@ i18n
                     'systemPromptHint': 'This is the character setting given to AI by the system. You can modify it according to your needs.',
                     'Speech Recognition Service': 'Speech Recognition Service',
                     'speechSvc.azureSTT': 'Azure STT',
-                    'azureSTT.serviceTip': 'This service requires an Azure subscription key. You\'ll need to register for an Azure account and create a Speech Service resource to get the key. Azure Speech Recognition provides high-quality speech recognition in many languages.'
+                    'azureSTT.serviceTip': 'This service requires an Azure subscription key. You\'ll need to register for an Azure account and create a Speech Service resource to get the key. Azure Speech Recognition provides high-quality speech recognition in many languages.',
+                    'speechSvc.webSpeechSTT': 'Browser STT',
+                    'webSpeech.sttServiceTip': 'This service uses your browser\'s built-in speech recognition engine.',
                 }
             },
             zh: {
@@ -335,7 +337,9 @@ i18n
                     'systemPromptHint': '以上为系统赋予 AI 的人物设定，你可以根据自身需求进行修改。',
                     'Speech Recognition Service': '语音识别服务',
                     'speechSvc.azureSTT': 'Azure STT',
-                    'azureSTT.serviceTip': '该服务需要 Azure 订阅密钥。你需要注册 Azure 账号并创建语音服务资源来获取密钥。Azure 语音识别提供多种语言的高质量语音识别服务。'
+                    'azureSTT.serviceTip': '该服务需要 Azure 订阅密钥。你需要注册 Azure 账号并创建语音服务资源来获取密钥。Azure 语音识别提供多种语言的高质量语音识别服务。',
+                    'speechSvc.webSpeechSTT': '浏览器内置 STT',
+                    'webSpeech.sttServiceTip': '该服务使用浏览器内置的本地语音识别引擎。',
                 }
             },
             // the Japanese translation is generated using LLM, PRs are welcomed to improve it.
@@ -496,7 +500,9 @@ i18n
                     'systemPromptHint': 'これはシステムによってAIに与えられたキャラクター設定です。必要に応じて修正することができます。',
                     'Speech Recognition Service': '音声認識サービス',
                     'speechSvc.azureSTT': 'Azure STT',
-                    'azureSTT.serviceTip': 'このサービスには Azure サブスクリプションキーが必要です。Azure アカウントを登録し、Speech Service リソースを作成してキーを取得する必要があります。Azure 音声認識は多言語の高品質な音声認識を提供します。'
+                    'azureSTT.serviceTip': 'このサービスには Azure サブスクリプションキーが必要です。Azure アカウントを登録し、Speech Service リソースを作成してキーを取得する必要があります。Azure 音声認識は多言語の高品質な音声認識を提供します。',
+                    'speechSvc.webSpeechSTT': 'ブラウザ STT',
+                    'webSpeech.sttServiceTip': 'このサービスは、ブラウザに内蔵されている音声認識エンジンを使用します。',
                 }
             }
         }
