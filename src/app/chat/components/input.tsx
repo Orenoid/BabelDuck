@@ -27,6 +27,8 @@ import {
 } from "./input-handlers";
 import { SpecialRoles, TextMessage } from "./message";
 import { TutorialDiffView, TutorialInput } from "./tutorial-input";
+import * as sdk from 'microsoft-cognitiveservices-speech-sdk';
+import { getSelectedSTTSvcID, getSTTSvcSettings, azureSTTSvcID } from '@/app/settings/components/speech-settings';
 
 export async function reviseMessage(
     messageToRevise: string,
@@ -466,14 +468,34 @@ function TextInput(
     }
 ) {
     const { t } = useTranslation();
-    type typingOrVoiceMode = { type: 'typing' } | { type: 'voiceMode', autoSend: boolean };
-    const [inputState, setInputState] = useState<
-        | { type: 'noEdit', recoverState: typingOrVoiceMode }
+    type typingOrVoiceMode =
         | { type: 'typing' }
-        | { type: 'voiceMode', autoSend: boolean }
-        | { type: 'recording', recorder: IMediaRecorder, stream: MediaStream, previousState: typingOrVoiceMode }
-        | { type: 'transcribing', previousState: typingOrVoiceMode }
-    >(allowEdit ? { type: 'typing' } : { type: 'noEdit', recoverState: { type: 'typing' } });
+        | { type: 'voiceMode', autoSend: boolean };
+
+    type InputState =
+        | { type: 'noEdit', recoverState: typingOrVoiceMode }
+        | typingOrVoiceMode
+        | {
+            type: 'recording',
+            recorder: IMediaRecorder,
+            stream: MediaStream,
+            previousState: typingOrVoiceMode
+        }
+        | {
+            type: 'transcribing',
+            previousState: typingOrVoiceMode
+        }
+        | {
+            type: 'realtime-recognizing',
+            recognizer: sdk.SpeechRecognizer,
+            previousState: typingOrVoiceMode
+        };
+
+    const [inputState, setInputState] = useState<InputState>(
+        allowEdit ?
+            { type: 'typing' } : { type: 'noEdit', recoverState: { type: 'typing' } }
+    );
+
     const allowEditRef = useRef(allowEdit)
     useEffect(() => {
         // only trigger when allowEdit changes
@@ -503,7 +525,8 @@ function TextInput(
 
     const isTyping = inputState.type === 'typing'
     const isVoiceMode = inputState.type === 'voiceMode'
-    const isRecording = inputState.type === 'recording'
+    const readyForInput = inputState.type === 'typing' || inputState.type === 'voiceMode'
+    const readingFromMic = inputState.type === 'recording' || inputState.type === 'realtime-recognizing'
     const isTranscribing = inputState.type === 'transcribing'
 
     const defaultRole = 'user'
@@ -540,7 +563,7 @@ function TextInput(
     const inputDivRef = useRef<HTMLDivElement>(null);
 
     // inputState convertors
-    function handleSend(msg: TextMessage, callbackOpts: messageAddedCallbackOptions = { generateAssistantMsg: true }) {
+    function sendMessage(msg: TextMessage, callbackOpts: messageAddedCallbackOptions = { generateAssistantMsg: true }) {
         if (inputState.type !== 'typing' && inputState.type !== 'voiceMode') return;
         if (msg.content.trim() === "") return;
         addMessage(msg, callbackOpts);
@@ -549,10 +572,67 @@ function TextInput(
             textAreaRef.current?.focus();
         }
     }
-    const startRecording = async () => {
-        if (inputState.type !== 'typing' && inputState.type !== 'voiceMode') {
-            return
+    const startRealtimeRecognizing = async (inputState: typingOrVoiceMode) => {
+        const settings = getSTTSvcSettings(azureSTTSvcID) as {
+            region: string;
+            subscriptionKey?: string;
+            lang: string;
+        };
+        if (!settings.subscriptionKey) {
+            console.error('Azure subscription key not configured');
+            return;
         }
+        const speechConfig = sdk.SpeechConfig.fromSubscription(
+            settings.subscriptionKey,
+            settings.region
+        );
+        speechConfig.speechRecognitionLanguage = settings.lang;
+        const audioConfig = sdk.AudioConfig.fromDefaultMicrophoneInput();
+        const newRecognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+
+        newRecognizer.recognizing = (s, e) => {
+            setMsg(prev => prev.updateContent(e.result.text));
+        };
+        newRecognizer.recognized = (s, e) => {
+            if (e.result.text) {
+                setMsg(prev => prev.updateContent(prev.content + e.result.text + ' '));
+            }
+        };
+        newRecognizer.canceled = (s, e) => {
+            if (e.errorCode === sdk.CancellationErrorCode.AuthenticationFailure) {
+                console.error('Invalid or incorrect subscription key');
+            } else {
+                console.error(`Recognition canceled: ${e.errorDetails}`);
+            }
+            setInputState(inputState);
+        };
+        newRecognizer.sessionStopped = () => {
+            newRecognizer.stopContinuousRecognitionAsync();
+            setInputState(inputState);
+        };
+
+        setInputState({
+            type: 'realtime-recognizing',
+            recognizer: newRecognizer,
+            previousState: inputState
+        });
+        newRecognizer.startContinuousRecognitionAsync(
+            () => {
+                console.log('azure recognizing started')
+            },
+            error => {
+                console.error(`Error starting recognition: ${error}`);
+                setInputState(inputState);
+            }
+        );
+    }
+    const stopRealtimeRecognizing = (inputState: InputState) => {
+        if (inputState.type === 'realtime-recognizing') {
+            inputState.recognizer.stopContinuousRecognitionAsync();
+            setInputState(inputState.previousState);
+        }
+    }
+    const startRecording = async (inputState: typingOrVoiceMode) => {
         const { MediaRecorder, register } = await import("extendable-media-recorder");
         const { connect } = await import("extendable-media-recorder-wav-encoder");
         if (!MediaRecorder.isTypeSupported('audio/wav')) {
@@ -560,7 +640,12 @@ function TextInput(
         }
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
         const recorder = new MediaRecorder(stream, { mimeType: 'audio/wav' })
-        setInputState(prev => ({ type: 'recording', recorder: recorder, stream: stream, previousState: prev as typingOrVoiceMode }))
+        setInputState({
+            type: 'recording',
+            recorder: recorder,
+            stream: stream,
+            previousState: inputState
+        })
 
         const audioChunks: Blob[] = []
         recorder.addEventListener("dataavailable", event => {
@@ -572,14 +657,27 @@ function TextInput(
         })
         recorder.start()
     }
-    const stopRecording = async () => {
-        if (inputState.type !== 'recording') {
+
+    const startVoiceInput = async () => {
+        if (!readyForInput) {
             return
         }
-        inputState.recorder.stop();
-        // https://stackoverflow.com/questions/44274410/mediarecorder-stop-doesnt-clear-the-recording-icon-in-the-tab
-        inputState.stream.getTracks().forEach(track => track.stop())
-        setInputState({ type: 'transcribing', previousState: inputState.previousState })
+        const selectedSTTSvcID = getSelectedSTTSvcID();
+        if (selectedSTTSvcID === azureSTTSvcID) {
+            await startRealtimeRecognizing(inputState as typingOrVoiceMode);
+        } else {
+            await startRecording(inputState as typingOrVoiceMode);
+        }
+    }
+    const stopVoiceInput = async () => {
+        if (inputState.type === 'realtime-recognizing') {
+            stopRealtimeRecognizing(inputState);
+        } else if (inputState.type === 'recording') {
+            inputState.recorder.stop();
+            inputState.stream.getTracks().forEach(track => track.stop());
+            // TODO tech-dept: 没有在 startTranscribing 里设置为 transcribing 状态，反直觉
+            setInputState({ type: 'transcribing', previousState: inputState.previousState });
+        }
     }
     const startTranscribing = (audioBlob: Blob, previousState: typingOrVoiceMode) => {
         const form = new FormData();
@@ -601,7 +699,7 @@ function TextInput(
                 setMsg(newMsg);
                 setInputState(previousState)
                 if (previousState.type === 'voiceMode' && previousState.autoSend) {
-                    handleSend(newMsg)
+                    sendMessage(newMsg)
                 }
                 if (previousState.type === 'typing') {
                     textAreaRef.current?.focus();
@@ -609,7 +707,7 @@ function TextInput(
             })
             .catch(err => {
                 console.error(err);
-                stopRecording();
+                stopVoiceInput();
             });
     };
     const enableVoiceMode = () => {
@@ -631,14 +729,27 @@ function TextInput(
         setInputState({ type: 'voiceMode', autoSend: !inputState.autoSend })
     }
 
+    useEffect(() => {
+        return () => {
+            if (inputState.type === 'realtime-recognizing') {
+                inputState.recognizer.stopContinuousRecognitionAsync();
+            }
+        }
+    }, [inputState]);
+
     return <div ref={inputDivRef} tabIndex={0} className="flex flex-col focus:outline-none"
-        onKeyDown={(e) => e.key === ' ' && isVoiceMode && startRecording()}
-        // TODO bug: if the space key is released too soon right after pressing it, the recording will not stop
+        onKeyDown={(e) => {
+            if (e.key === ' ' && isVoiceMode && !readingFromMic && !isTranscribing) {
+                startVoiceInput();
+            }
+        }}
         onKeyUp={
             (e) => {
-                if (e.key === ' ' && isRecording && inputState.previousState.type === 'voiceMode') { stopRecording() }
+                if (e.key === ' ' && readingFromMic && inputState.previousState.type === 'voiceMode') {
+                    stopVoiceInput()
+                }
                 if (e.key === 'i' && isVoiceMode) { disableVoiceMode() }
-                if (e.key === 'Enter' && isVoiceMode) { handleSend(msg) }
+                if (e.key === 'Enter' && isVoiceMode) { sendMessage(msg) }
                 if (e.key === 'Backspace' && isVoiceMode) { clearMessageInVoiceMode() }
             }
         }
@@ -649,8 +760,8 @@ function TextInput(
             ref={textAreaRef}
             placeholder={
                 (isVoiceMode
-                    || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
-                    || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                    || (readingFromMic && inputState.previousState.type === 'voiceMode')
+                    || (isTranscribing && inputState.previousState.type === 'voiceMode')
                     || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
                 )
                     ? t('recordingTips')
@@ -673,12 +784,12 @@ function TextInput(
                 // }
                 if (e.key === 'Enter' && e.ctrlKey) {
                     e.preventDefault();
-                    handleSend(msg, { generateAssistantMsg: false });
+                    sendMessage(msg, { generateAssistantMsg: false });
                     return;
                 }
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
-                    handleSend(msg);
+                    sendMessage(msg);
                     return;
                 }
             }} rows={2} />
@@ -704,8 +815,8 @@ function TextInput(
             {/* voice control buttons */}
             <div className="flex flex-row items-center">
                 {(isVoiceMode
-                    || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
-                    || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                    || (readingFromMic && inputState.previousState.type === 'voiceMode')
+                    || (isTranscribing && inputState.previousState.type === 'voiceMode')
                     || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
                 )
                     && <label id="auto-send-label" className={`flex items-center mr-2 cursor-pointer`}>
@@ -714,8 +825,8 @@ function TextInput(
                             disabled={!isVoiceMode}
                             checked={isVoiceMode && inputState.autoSend
                                 // while recording and transcribing, keep what was set before
-                                || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
-                                || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
+                                || (readingFromMic && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
+                                || (isTranscribing && inputState.previousState.type === 'voiceMode' && inputState.previousState.autoSend)
                                 || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode' && inputState.recoverState.autoSend)
                             }
                             onChange={toggleAutoSend}
@@ -731,8 +842,8 @@ function TextInput(
                     <Switch checked={
                         isVoiceMode
                         // while recording and transcribing, keep what was set before
-                        || (inputState.type === 'recording' && inputState.previousState.type === 'voiceMode')
-                        || (inputState.type === 'transcribing' && inputState.previousState.type === 'voiceMode')
+                        || (readingFromMic && inputState.previousState.type === 'voiceMode')
+                        || (isTranscribing && inputState.previousState.type === 'voiceMode')
                         || (inputState.type === 'noEdit' && inputState.recoverState.type === 'voiceMode')
                     }
                         onChange={(checked) => { return checked ? enableVoiceMode() : disableVoiceMode() }}
@@ -748,21 +859,23 @@ function TextInput(
                 <button
                     id="recording-button"
                     className="rounded-full bg-black hover:bg-gray-700 focus:outline-none"
-                    onClick={isRecording ? stopRecording : startRecording}
+                    onClick={readingFromMic ? stopVoiceInput : startVoiceInput}
                 >
-                    {isRecording ?
+                    {readingFromMic ? (
                         <div className="flex items-center justify-center w-16 h-8">
                             <Audio height={17} width={34} color="white" wrapperClass="p-2" />
-                        </div> : (
-                            isTranscribing ?
-                                <div className="flex items-center justify-center w-16 h-8">
-                                    <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
-                                </div> :
-                                <div className="flex items-center justify-center w-16 h-8">
-                                    <FaMicrophone size={17} color="white" />
-                                </div>
+                        </div>
+                    ) : (
+                        isTranscribing ? (
+                            <div className="flex items-center justify-center w-16 h-8">
+                                <Oval height={17} width={17} color="#959595" secondaryColor="#959595" strokeWidth={4} strokeWidthSecondary={4} />
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center w-16 h-8">
+                                <FaMicrophone size={17} color="white" />
+                            </div>
                         )
-                    }
+                    )}
                 </button>
                 <Tooltip
                     anchorSelect="#recording-button" delayShow={100} delayHide={0} place="top" style={{ borderRadius: '0.75rem' }}
