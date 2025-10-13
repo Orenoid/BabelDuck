@@ -1,9 +1,9 @@
 'use client'
 
 import { TransparentButton } from "@/app/ui-utils/components/button"
-import type { CustomLLMServiceChatISettings, OpenAIChatISettings } from "../lib/intelligence"
+import type { CustomLLMServiceChatISettings, OpenAIChatISettings, ThreeZeroTwoAIChatISettings } from "../lib/intelligence"
 import { getLLMServiceSettingsRecord } from "../lib/llm-service"
-import { OpenAICompatibleAPIServiceSettings, OpenAIServiceSettings } from "./llm-service"
+import { OpenAICompatibleAPIServiceSettings, OpenAIServiceSettings, ThreeZeroTwoAIServiceSettings } from "./llm-service"
 import { useState } from "react"
 import { IoMdInformationCircleOutline } from "react-icons/io"
 import { useTranslation } from "react-i18next"
@@ -44,6 +44,46 @@ export function OpenAIChatISettings(
             }} />
         {isLocal &&
             <TransparentButton className="absolute right-0 top-0" onClick={() => { resetToLinkTypeSettings() }}> Reset to Default </TransparentButton>
+        }
+    </div>
+}
+
+export function ThreeZeroTwoAIChatISettings(
+    { settings: untypedSettings, updateChatISettings }: { settings: object, updateChatISettings: (settings: object) => void }
+) {
+    const settings = untypedSettings as ThreeZeroTwoAIChatISettings
+    const [threeZeroTwoAISvcSettingsKey, setThreeZeroTwoAISvcSettingsKey] = useState(0)
+
+    let threeZeroTwoAISvcSettings: { name: string } & object
+    if (settings.settingsType === 'local') {
+        threeZeroTwoAISvcSettings = settings.localSettings!
+    } else {
+        const llmServiceSettings = getLLMServiceSettingsRecord('302ai')
+        if (!llmServiceSettings) {
+            throw new Error(`302.AI LLM service settings not found`)
+        }
+        threeZeroTwoAISvcSettings = llmServiceSettings.settings as { name: string } & object
+    }
+
+    function resetToLinkTypeSettings() {
+        updateChatISettings({
+            'settingsType': 'link'
+        })
+        setThreeZeroTwoAISvcSettingsKey(threeZeroTwoAISvcSettingsKey + 1)
+    }
+
+    const isLocal = settings.settingsType === 'local'
+
+    return <div className="flex flex-col relative">
+        <ThreeZeroTwoAIServiceSettings key={threeZeroTwoAISvcSettingsKey} settings={threeZeroTwoAISvcSettings}
+            updateSettings={(threeZeroTwoAISvcSettings) => {
+                updateChatISettings({
+                    'settingsType': 'local',
+                    'localSettings': threeZeroTwoAISvcSettings
+                })
+            }} />
+        {isLocal &&
+            <TransparentButton className="absolute top-20 right-0" onClick={() => { resetToLinkTypeSettings() }}> Reset to Default </TransparentButton>
         }
     </div>
 }

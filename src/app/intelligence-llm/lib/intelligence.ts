@@ -1,7 +1,7 @@
 import { i18nText } from "@/app/i18n/i18n"
 import { isOpenAILikeMessage, Message } from "@/app/chat/lib/message"
 import { BabelDuckMessage, FreeTrialMessage, SpecialRoles, StreamingTextMessage } from "@/app/chat/components/message"
-import { getCustomLLMServiceSettings, getLLMServiceSettingsRecord, OpenAICompatibleAPIService, OpenAIService, OpenAISettings } from "./llm-service"
+import { getCustomLLMServiceSettings, getLLMServiceSettingsRecord, OpenAICompatibleAPIService, OpenAIService, OpenAISettings, ThreeZeroTwoAIService } from "./llm-service"
 import { IdentifiedTextMessage, NextStepTutorialMessage } from "@/app/chat/components/tutorial-message"
 import { TutorialStateIDs } from "@/app/chat/components/tutorial-redux"
 import { FreeTrialChatError, InvalidModelSettingsError } from "@/app/error/error"
@@ -287,6 +287,77 @@ export class CustomLLMChatIntelligence extends ChatIntelligenceBase {
     }
 }
 
+export type ThreeZeroTwoAIChatISettings = {
+    settingsType: 'link' | 'local'
+    localSettings?: { name: string } & object // only makes sense when settingsType is 'local'
+}
+
+export class ThreeZeroTwoAIChatIntelligence extends ChatIntelligenceBase {
+    static readonly id = '302ai'
+    static readonly type = '302ai'
+    static readonly _name: i18nText = { text: '302.AI' }
+
+    static readonly defaultSettings: ThreeZeroTwoAIChatISettings = {
+        settingsType: 'link',
+    }
+
+    settingsType: 'link' | 'local'
+    localSettings?: { name: string } & object // only makes sense when settingsType is 'local'
+
+    constructor(settingsType: 'link' | 'local', settings?: { name: string } & object) {
+
+        super(ThreeZeroTwoAIChatIntelligence.type, { text: settings?.name ?? '' })
+        if (settingsType === 'local' && !settings) {
+            throw new Error('settings is required when settingsType is local')
+        }
+        this.settingsType = settingsType
+        this.localSettings = settings
+    }
+
+    private getService(): ThreeZeroTwoAIService {
+        if (this.settingsType === 'link') {
+            const llmServiceSettingsRecord = getLLMServiceSettingsRecord('302ai')
+            if (!llmServiceSettingsRecord) {
+                throw new Error('302.AI LLM service settings not found')
+            }
+            const llmService = ThreeZeroTwoAIService.deserialize(llmServiceSettingsRecord.settings)
+            return llmService
+        } else {
+            return ThreeZeroTwoAIService.deserialize(this.localSettings!)
+        }
+    }
+
+    completeChat(messageList: Message[]): Message[] {
+        const llmService = this.getService()
+        if (llmService.apiKey === '') {
+            throw new InvalidModelSettingsError('302.AI API key is not set')
+        }
+        async function* genFunc() {
+            const { textStream } = await llmService.chatCompletionInStream(
+                messageList.filter((msg) => msg.includedInChatCompletion)
+                    .filter((msg) => isOpenAILikeMessage(msg))
+                    .map((msg) => (msg.toOpenAIMessage()))
+            )
+            for await (const value of textStream) {
+                yield value
+            }
+            return
+        }
+        const gen = genFunc()
+        return [new StreamingTextMessage(SpecialRoles.ASSISTANT, gen)]
+    }
+
+    serialize(): string {
+        return JSON.stringify({ type: this.type, settingsType: this.settingsType, settings: this.localSettings })
+    }
+
+    static deserialize(serialized: string): ThreeZeroTwoAIChatIntelligence {
+        const { settingsType, settings } = JSON.parse(serialized)
+        return new ThreeZeroTwoAIChatIntelligence(settingsType, settings.localSettings)
+    }
+
+}
+
 // BabelDuck intelligence (just for fun :D)
 export class BabelDuckChatIntelligence extends ChatIntelligenceBase {
     static readonly id = 'babel_duck'
@@ -355,6 +426,7 @@ intelligenceRegistry.registerChatIntelligenceSerializer(TutorialChatIntelligence
 export const builtinIntelligenceSettings: Record<string, chatIntelligenceSettings> = {
     [FreeTrialChatIntelligence.id]: { name: { key: 'Free Trial' }, type: FreeTrialChatIntelligence.type, settings: {} },
     [OpenAIChatIntelligence.id]: { name: OpenAIChatIntelligence._name, type: OpenAIChatIntelligence.type, settings: OpenAIChatIntelligence.defaultSettings },
+    [ThreeZeroTwoAIChatIntelligence.id]: { name: ThreeZeroTwoAIChatIntelligence._name, type: ThreeZeroTwoAIChatIntelligence.type, settings: ThreeZeroTwoAIChatIntelligence.defaultSettings },
 }
 
 const babelDuckSettings = {

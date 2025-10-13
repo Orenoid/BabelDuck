@@ -11,9 +11,9 @@ import { getLLMSettingsComponent } from "@/app/intelligence-llm/components/llm-s
 import { loadGlobalChatSettings, switchToLocalChatSettings, switchToGlobalChatSettings, setLocalChatSettings, setGlobalChatSettings, loadChatSettings } from "../lib/settings";
 import { ChatSettings } from "@/app/chat/components/chat-settings";
 import { LocalChatSettings } from "@/app/chat/components/chat-settings";
-import { BabelDuckChatIntelligence, CustomLLMChatIntelligence, FreeTrialChatIntelligence, getSelectableChatIntelligenceSettings, getChatIntelligenceSettingsByID, OpenAIChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
+import { BabelDuckChatIntelligence, CustomLLMChatIntelligence, FreeTrialChatIntelligence, getSelectableChatIntelligenceSettings, getChatIntelligenceSettingsByID, OpenAIChatIntelligence, ThreeZeroTwoAIChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
 import { InputHandler } from "@/app/chat/components/input-handlers";
-import { BabelDuckChatISettings, CustomLLMChatISettings, FreeTrialChatISettings, OpenAIChatISettings } from "@/app/intelligence-llm/components/intelligence";
+import { BabelDuckChatISettings, CustomLLMChatISettings, FreeTrialChatISettings, OpenAIChatISettings, ThreeZeroTwoAIChatISettings } from "@/app/intelligence-llm/components/intelligence";
 import Switch from "react-switch";
 import { IconCircleWrapper } from "@/app/ui-utils/components/wrapper";
 import { PiTrashBold } from "react-icons/pi";
@@ -407,6 +407,12 @@ function CommonChatSettings({ chatSettings, updateChatSettings, className = "" }
         {chatSettingsRO.chatISettings.chatIType === BabelDuckChatIntelligence.type &&
             <div className="flex flex-col mb-4">
                 <BabelDuckChatISettings settings={chatSettingsRO.chatISettings.settings}
+                    updateChatISettings={updateSelectedChatISettings} />
+            </div>
+        }
+        {chatSettingsRO.chatISettings.chatIType === ThreeZeroTwoAIChatIntelligence.type &&
+            <div className="flex flex-col mb-4">
+                <ThreeZeroTwoAIChatISettings settings={chatSettingsRO.chatISettings.settings}
                     updateChatISettings={updateSelectedChatISettings} />
             </div>
         }

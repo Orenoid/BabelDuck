@@ -173,7 +173,11 @@ i18n
                     'azureTTS.serviceTip': 'This service requires an Azure subscription key. You\'ll need to register for an Azure account and create a Speech Service resource to get the key. Azure TTS provides high-quality voices in many languages and supports neural text-to-speech.',
                     'autoPlayAudioDescription': 'Automatically play speech after AI responds to your message',
                     'systemPrompt': 'You are a friendly conversation partner. Please respond in the same language as the user. Keep your responses short and natural, under 50 words. Use casual, conversational language. Avoid formal language and complex sentences. Express one point at a time. Do not use formatted text (like bold or italic) or emojis to ensure better text-to-speech results.',
-                    'systemPromptHint': 'This is the character setting given to AI by the system. You can modify it according to your needs.'
+                    'systemPromptHint': 'This is the character setting given to AI by the system. You can modify it according to your needs.',
+                    '302.AI Product Introduction': '302.AI aims to provide a user-friendly API platform for beginners and developers, with pay-as-you-go pricing, simplified development processes, support for professional customers to integrate using APIs and open-source tools, and is committed to making AI change lives.',
+                    'Select Model': 'Select Model',
+                    'Get API Key': 'Get API Key',
+                    'Test': 'Test'
                 }
             },
             zh: {
@@ -329,7 +333,11 @@ i18n
                     'azureTTS.serviceTip': '该服务需要 Azure 订阅密钥。你需要注册 Azure 账号并创建语音服务资源来获取密钥。Azure TTS 提供多种语言的高质量语音，支持神经网络文本转语音。',
                     'autoPlayAudioDescription': '在 AI 回复消息后自动播放语音',
                     'systemPrompt': '你是一位口语对话练习伙伴，请使用与用户相同的语言回复。保持回答简短自然，尽量控制在50字以内。使用日常对话的语气，避免复杂句子。一次表达一个观点。不要使用格式化文本（如粗体、斜体、序号等）和表情符号，以确保更好的文本转语音效果。',
-                    'systemPromptHint': '以上为系统赋予 AI 的人物设定，你可以根据自身需求进行修改。'
+                    'systemPromptHint': '以上为系统赋予 AI 的人物设定，你可以根据自身需求进行修改。',
+                    '302.AI Product Introduction': '302.AI旨在为小白用户和开发者提供友好的API平台，按需付费，简化开发流程，支持专业客户使用API和开源工具对接，致力于让AI改变生活。',
+                    'Select Model': '选择模型',
+                    'Get API Key': '获取 API Key',
+                    'Test': '测试'
                 }
             },
             // the Japanese translation is generated using LLM, PRs are welcomed to improve it.
@@ -487,7 +495,11 @@ i18n
                     'azureTTS.serviceTip': 'このサービスには Azure サブスクリプションキー必要で���。Azure アカウントを登録し、Speech Service リソースを作成してキーを取得する必要があります。Azure TTS は多言語の高品質な音声を提供し、ニューラル音声合成をサポートしています。',
                     'autoPlayAudioDescription': 'AIが応答した後、自動的に音声を再生します',
                     'systemPrompt': 'フレンドリーな会話パートナーです。ユーザーと同じ言語で応答します。回答は短く自然に保ち、50語以内を目指します。カジュアルな会話調を使用し、形式的な言葉や複雑な文を避けます。一度に一つのポイントを表現します。テキスト読み上げの効果を高めるため、フォーマット済みテキスト（太字、斜体など）や絵文字は使用しません。',
-                    'systemPromptHint': 'これはシステムによってAIに与えられたキャラクター設定です。必要に応じて修正することができます。'
+                    'systemPromptHint': 'これはシステムによってAIに与えられたキャラクター設定です。必要に応じて修正することができます。',
+                    '302.AI Product Introduction': '302.AIは、初心者と開発者のためにユーザーフレンドリーなAPIプラットフォームを提供し、従量課金制、簡素化された開発プロセス、専門顧客がAPIとオープンソースツールを使用して接続することをサポートし、AIが生活を変えるように努めています。',
+                    'Select Model': 'モデルを選択',
+                    'Get API Key': 'APIキーを取得',
+                    'Test': 'テスト'
                 }
             }
         }
