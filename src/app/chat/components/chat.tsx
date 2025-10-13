@@ -10,7 +10,7 @@ import { RecommendedRespMessage, SpecialRoles as SpecialRoles, TextMessage } fro
 import { MessageInput, MsgListSwitchSignal } from "./input";
 import { InputHandler } from "./input-handlers";
 import { SiTheconversation } from "react-icons/si";
-import { BabelDuckChatIntelligence, ChatIntelligence, CustomLLMChatIntelligence, CustomLLMServiceChatISettings, FreeTrialChatIntelligence, getChatIntelligenceSettingsByID, OpenAIChatIntelligence, OpenAIChatISettings, TutorialChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
+import { BabelDuckChatIntelligence, ChatIntelligence, CustomLLMChatIntelligence, CustomLLMServiceChatISettings, FreeTrialChatIntelligence, getChatIntelligenceSettingsByID, OpenAIChatIntelligence, OpenAIChatISettings, ThreeZeroTwoAIChatISettings, ThreeZeroTwoAIChatIntelligence, TutorialChatIntelligence } from "@/app/intelligence-llm/lib/intelligence";
 import { InvalidModelSettingsError } from "@/app/error/error";
 import { FreeTrialChatError } from "@/app/error/error";
 import { MdKeyboardArrowRight } from "react-icons/md";
@@ -68,7 +68,11 @@ export function Chat({ chatID, chatTitle, loadChatByID, className = "" }: {
             chatIntelligence = new BabelDuckChatIntelligence()
         } else if (type === TutorialChatIntelligence.type) {
             chatIntelligence = new TutorialChatIntelligence()
-        } else {
+        } else if (type === ThreeZeroTwoAIChatIntelligence.type) {
+            const settings = chatSettings.ChatISettings.settings as ThreeZeroTwoAIChatISettings
+            chatIntelligence = new ThreeZeroTwoAIChatIntelligence(settings.settingsType, settings.localSettings)
+        }
+         else {
             throw new Error(`Chat intelligence with type ${type} not found`)
         }
     }
